@@ -1,0 +1,250 @@
+
+resources:
+
+# k8s api
+- kind: "Deployment"
+  plural: "deployments"
+  group: "apps"
+  version: "v1"
+  builtin: true
+  proto: "k8s.io.api.apps.v1.DeploymentSpec"
+  protoPackage: "k8s.io/api/apps/v1"
+
+- kind: "Endpoints"
+  plural: "endpoints"
+  version: "v1"
+  builtin: true
+  specless: true
+  proto: "k8s.io.api.core.v1.Endpoints"
+  protoPackage: "k8s.io/api/core/v1"
+
+- kind: "EndpointSlice"
+  plural: "endpointslices"
+  group: "discovery.k8s.io"
+  version: "v1"
+  builtin: true
+  specless: true
+  proto: "k8s.io.api.discovery.v1.EndpointSlice"
+  protoPackage: "k8s.io/api/discovery/v1"
+
+- kind: "Namespace"
+  plural: "namespaces"
+  version: "v1"
+  clusterScoped: true
+  builtin: true
+  proto: "k8s.io.api.core.v1.NamespaceSpec"
+  protoPackage: "k8s.io/api/core/v1"
+
+- kind: "Node"
+  plural: "nodes"
+  version: "v1"
+  clusterScoped: true
+  builtin: true
+  proto: "k8s.io.api.core.v1.NodeSpec"
+  protoPackage: "k8s.io/api/core/v1"
+
+- kind: "Pod"
+  plural: "pods"
+  version: "v1"
+  builtin: true
+  proto: "k8s.io.api.core.v1.PodSpec"
+  protoPackage: "k8s.io/api/core/v1"
+
+- kind: "DaemonSet"
+  plural: "daemonsets"
+  group: "apps"
+  version: "v1"
+  builtin: true
+  proto: "k8s.io.api.apps.v1.DaemonSetSpec"
+  protoPackage: "k8s.io/api/apps/v1"
+
+- kind: "StatefulSet"
+  plural: "statefulsets"
+  group: "apps"
+  version: "v1"
+  builtin: true
+  proto: "k8s.io.api.apps.v1.StatefulSetSpec"
+  protoPackage: "k8s.io/api/apps/v1"
+
+- kind: "Secret"
+  plural: "secrets"
+  version: "v1"
+  builtin: true
+  specless: true
+  proto: "k8s.io.api.core.v1.Secret"
+  protoPackage: "k8s.io/api/core/v1"
+
+- kind: "Service"
+  plural: "services"
+  version: "v1"
+  builtin: true
+  proto: "k8s.io.api.core.v1.ServiceSpec"
+  protoPackage: "k8s.io/api/core/v1"
+  statusProto: "k8s.io.api.core.v1.ServiceStatus"
+  statusProtoPackage: "k8s.io/api/core/v1"
+
+- kind: "ConfigMap"
+  plural: "configmaps"
+  version: "v1"
+  builtin: true
+  specless: true
+  proto: "k8s.io.api.core.v1.ConfigMap"
+  protoPackage: "k8s.io/api/core/v1"
+
+- kind: "ServiceAccount"
+  plural: "serviceaccounts"
+  version: "v1"
+  builtin: true
+  specless: true
+  proto: "k8s.io.api.core.v1.ServiceAccount"
+  protoPackage: "k8s.io/api/core/v1"
+
+
+# gateway-api
+
+- kind: "GatewayClass"
+  plural: "gatewayclasses"
+  group: "gateway.networking.k8s.io"
+  version: "v1"
+  versionAliases:
+    - "v1alpha2"
+    - "v1beta1"
+  clusterScoped: true
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+  proto: "k8s.io.gateway_api.api.v1alpha1.GatewayClassSpec"
+  statusProto: "k8s.io.gateway_api.api.v1alpha1.GatewayClassStatus"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+
+- kind: "Gateway"
+  identifier: KubernetesGateway
+  plural: "gateways"
+  group: "gateway.networking.k8s.io"
+  version: "v1"
+  versionAliases:
+    - "v1alpha2"
+    - "v1beta1"
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+  proto: "k8s.io.gateway_api.api.v1alpha1.GatewaySpec"
+  validate: "validation.EmptyValidate"
+  statusProto: "k8s.io.gateway_api.api.v1alpha1.GatewayStatus"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+
+- kind: "HTTPRoute"
+  plural: "httproutes"
+  group: "gateway.networking.k8s.io"
+  version: "v1"
+  versionAliases:
+    - "v1alpha2"
+    - "v1beta1"
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+  proto: "k8s.io.gateway_api.api.v1alpha1.HTTPRouteSpec"
+  statusProto: "k8s.io.gateway_api.api.v1alpha1.HTTPRouteStatus"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+
+- kind: "GRPCRoute"
+  plural: "grpcroutes"
+  group: "gateway.networking.k8s.io"
+  version: "v1"
+  versionAliases:
+    - "v1alpha2"
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+  proto: "k8s.io.gateway_api.api.v1alpha1.GRPCRouteSpec"
+  statusProto: "k8s.io.gateway_api.api.v1alpha1.GRPCRouteStatus"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+
+- kind: "TCPRoute"
+  plural: "tcproutes"
+  group: "gateway.networking.k8s.io"
+  version: "v1alpha2"
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1alpha2"
+  proto: "k8s.io.gateway_api.api.v1alpha1.TCPRouteSpec"
+  statusProto: "k8s.io.gateway_api.api.v1alpha1.TCPRouteStatus"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apis/v1alpha2"
+
+- kind: "TLSRoute"
+  plural: "tlsroutes"
+  group: "gateway.networking.k8s.io"
+  version: "v1alpha2"
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1alpha2"
+  proto: "k8s.io.gateway_api.api.v1alpha1.TLSRouteSpec"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apis/v1alpha2"
+  statusProto: "k8s.io.gateway_api.api.v1alpha1.TLSRouteStatus"
+
+- kind: "UDPRoute"
+  plural: "udproutes"
+  group: "gateway.networking.k8s.io"
+  version: "v1alpha2"
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1alpha2"
+  proto: "k8s.io.gateway_api.api.v1alpha1.UDPRouteSpec"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apis/v1alpha2"
+  statusProto: "k8s.io.gateway_api.api.v1alpha1.UDPRouteStatus"
+
+- kind: "ReferenceGrant"
+  plural: "referencegrants"
+  group: "gateway.networking.k8s.io"
+  version: "v1beta1"
+  versionAliases:
+    - "v1alpha2"
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1beta1"
+  proto: "k8s.io.gateway_api.api.v1alpha1.ReferenceGrantSpec"
+
+- kind: "XBackendTrafficPolicy"
+  plural: "xbackendtrafficpolicies"
+  group: "gateway.networking.x-k8s.io"
+  version: "v1alpha1"
+  protoPackage: "sigs.k8s.io/gateway-api/apisx/v1alpha1"
+  proto: "k8s.io.gateway_api.apix.v1alpha1.BackendTrafficPolicySpec"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apisx/v1alpha1"
+  statusProto: PolicyStatus
+
+- kind: "BackendTLSPolicy"
+  plural: "backendtlspolicies"
+  group: "gateway.networking.k8s.io"
+  version: "v1"
+  protoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+  proto: "k8s.io.gateway_api.api.v1.BackendTLSPolicySpec"
+  statusProtoPackage: "sigs.k8s.io/gateway-api/apis/v1"
+  statusProto: "k8s.io.gateway_api.api.v1.PolicyStatus"
+
+#- kind: "XListenerSet"
+#  identifier: XListenerSet
+#  plural: "xlistenersets"
+#  group: "gateway.networking.x-k8s.io"
+#  version: "v1alpha1"
+#  protoPackage: "sigs.k8s.io/gateway-api/apisx/v1alpha1"
+#  proto: "ListenerSetSpec"
+#  statusProtoPackage: "sigs.k8s.io/gateway-api/apisx/v1alpha1"
+#  statusProto: "ListenerSetStatus"
+
+
+# gateway-api-inference-extension
+
+- kind: "InferencePool"
+  plural: "inferencepools"
+  group: "inference.networking.k8s.io"
+  version: "v1"
+  protoPackage: "sigs.k8s.io/gateway-api-inference-extension/api/v1"
+  proto: "x-k8s.io.gateway-api-inference-extension.api.v1.InferencePoolSpec"
+  statusProto: "x-k8s.io.gateway-api-inference-extension.api.v1.InferencePoolStatus"
+  statusProtoPackage: "sigs.k8s.io/gateway-api-inference-extension/api/v1"
+
+
+# istio api
+
+- kind: "EnvoyFilter"
+  plural: "envoyfilters"
+  group: "networking.istio.io"
+  version: "v1alpha3"
+  proto: "istio.networking.v1alpha3.EnvoyFilter"
+  protoPackage: "istio.io/api/networking/v1alpha3"
+  statusProto: "istio.meta.v1alpha1.IstioStatus"
+  statusProtoPackage: "istio.io/api/meta/v1alpha1"
+
+- kind: "WasmPlugin"
+  plural: "wasmplugins"
+  group: "extensions.istio.io"
+  version: "v1alpha1"
+  proto: "istio.extensions.v1alpha1.WasmPlugin"
+  protoPackage: "istio.io/api/extensions/v1alpha1"
+  statusProto: "istio.meta.v1alpha1.IstioStatus"
+  statusProtoPackage: "istio.io/api/meta/v1alpha1"
