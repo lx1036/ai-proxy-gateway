@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"fmt"
 	"github.com/lx1036/gateway/pkg/config/kube/crdclient"
+	"github.com/lx1036/gateway/pkg/config/schema/collections"
 	"k8s.io/klog/v2"
 	"net/url"
 )
@@ -36,61 +37,47 @@ const (
 )
 
 func (s *Server) initConfigController(args *PilotArgs) error {
+	stop := make(chan struct{})
 
 	if err := s.initConfigSources(args); err != nil {
 		return err
 	}
 
-	go s.configController.Run(stop)
-}
-
-func (s *Server) initConfigSources(args *PilotArgs) (err error) {
-	for _, configSource := range s.environment.Mesh().ConfigSources {
-
-		srcAddress, err := url.Parse(configSource.Address)
-		if err != nil {
-			return fmt.Errorf("invalid config URL %s %v", configSource.Address, err)
-		}
-		scheme := ConfigSourceAddressScheme(srcAddress.Scheme)
-		switch scheme {
-
-		case XDS:
-
-		case Kubernetes:
-			if srcAddress.Path == "" || srcAddress.Path == "/" {
-				err2 := s.initK8SConfigStore(args)
-				if err2 != nil {
-					klog.Warningf("Error loading k8s: %v", err2)
-					return err2
-				}
-				klog.Infof("Started Kubernetes configSource %s", configSource.Address)
-			} else {
-				klog.Warningf("Not implemented, ignore: %v", configSource.Address)
-				// TODO: handle k8s:// scheme for remote cluster. Use same mechanism as service registry,
-				// using the cluster name as key to match a secret.
-			}
-
-		default:
-			klog.Warningf("Ignoring unsupported config source: %v", configSource.Address)
-		}
-
+	for _, store := range s.ConfigStores {
+		go store.Run(stop)
 	}
 
 	return nil
 }
 
+// TODO: 目前只实现 Kubernetes ConfigStore, 后续实现 XDS/File
+func (s *Server) initConfigSources(args *PilotArgs) (err error) {
+	err2 := s.initK8SConfigStore(args)
+	if err2 != nil {
+		klog.Warningf("Error loading k8s: %v", err2)
+		return err2
+	}
+
+	return nil
+}
+
+// K8S ConfigStore 主要使用 CrdClient 从 k8s 里获取 resource
 func (s *Server) initK8SConfigStore(args *PilotArgs) error {
 	if s.kubeClient == nil {
 		return nil
 	}
 	configController := s.makeKubeConfigController(args)
+	s.ConfigStores = append(s.ConfigStores, configController)
+
+	// gateway
+	//gwc := gateway.NewController(s.kubeClient, s.kubeClient.CrdWatcher().WaitForCRD, args.RegistryOptions.KubeOptions, s.xdsServer)
 
 }
 
 func (s *Server) makeKubeConfigController(args *PilotArgs) *crdclient.Client {
-	schemas = collections.PilotGatewayAPI()
+	// gateway-api/gateway-api-inference-extension CR, skip Ingress
+	schemas := collections.GatewayAPI()
 	schemas = schemas.Add(collections.InferencePool)
-	// skip Ingress
 
 	opts := crdclient.Option{
 		Revision:     args.Revision,
@@ -98,5 +85,6 @@ func (s *Server) makeKubeConfigController(args *PilotArgs) *crdclient.Client {
 		Identifier:   "crd-controller",
 		KrtDebugger:  args.KrtDebugger,
 	}
+
 	return crdclient.NewForSchemas(s.kubeClient, opts, schemas)
 }

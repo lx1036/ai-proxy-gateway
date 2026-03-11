@@ -2,6 +2,7 @@ package kubetypes
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,4 +53,19 @@ type ReadAPI[T runtime.Object, TL runtime.Object] interface {
 type ReadWriteAPI[T runtime.Object, TL runtime.Object] interface {
 	ReadAPI[T, TL]
 	WriteAPI[T]
+}
+
+// CrdWatcher exposes an interface to watch CRDs
+type CrdWatcher interface {
+	// HasSynced returns true once all existing state has been synced.
+	HasSynced() bool
+	// KnownOrCallback returns `true` immediately if the resource is known.
+	// If it is not known, `false` is returned. If the resource is later added, the callback will be triggered.
+	KnownOrCallback(s schema.GroupVersionResource, f func(stop <-chan struct{})) bool
+	// WaitForCRD waits until the request CRD exists, and returns true on success. A false return value
+	// indicates the CRD does not exist but the wait failed or was canceled.
+	// This is useful to conditionally enable controllers based on CRDs being created.
+	WaitForCRD(s schema.GroupVersionResource, stop <-chan struct{}) bool
+	// Run starts the controller. This must be called.
+	Run(stop <-chan struct{})
 }

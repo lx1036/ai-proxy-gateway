@@ -11,6 +11,7 @@ MCP： 和MCP config controller类似，从MCP Server中获取Service和Service 
 Memory： 一个内存中的Service Controller实现，主要用于测试。
 */
 
-func (s *Server) initServiceControllers(args *PilotArgs) error {
+func (s *Server) initServiceController(args *PilotArgs) error {
 
+	return nil
 }

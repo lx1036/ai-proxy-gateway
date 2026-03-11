@@ -11,6 +11,20 @@ type Schemas struct {
 	byAddOrder   []resource.Schema
 }
 
+func (s Schemas) Add(toAdd ...resource.Schema) Schemas {
+	b := NewSchemasBuilder()
+
+	for _, s := range s.byAddOrder {
+		b.MustAdd(s)
+	}
+
+	for _, s := range toAdd {
+		b.MustAdd(s)
+	}
+
+	return b.Build()
+}
+
 type SchemasBuilder struct {
 	schemas Schemas
 }

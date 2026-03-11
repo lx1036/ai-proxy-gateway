@@ -1,0 +1,59 @@
+
+
+CniNamespace: higress-system
+CtrlZOptions:
+  Address: localhost
+  EnablePprof: false
+  Port: 9876
+InjectionOptions:
+  InjectionDirectory: ./var/lib/istio/inject
+JwtRule: ""
+KeepaliveOptions:
+  MaxServerConnectionAge: 1800000000000
+  MaxServerConnectionAgeGrace: 10000000000
+  Time: 30000000000
+  Timeout: 10000000000
+MeshConfigFile: ./etc/istio/config/mesh
+Namespace: higress-system
+NetworksConfigFile: ./etc/istio/config/meshNetworks
+PodName: higress-controller-6dfc47b4c7-2wzdv
+RegistryOptions:
+  ClusterRegistriesNamespace: higress-system
+  FileDir: ""
+  KubeConfig: ""
+  KubeOptions:
+    ClusterAliases: {}
+    ClusterID: Kubernetes
+    CniNamespace: ""
+    ConfigCluster: false
+    DomainSuffix: cluster.local
+    EndpointMode: 1
+    KrtDebugger: null
+    KubernetesAPIBurst: 160
+    KubernetesAPIQPS: 80
+    MeshNetworksWatcher: null
+    MeshServiceController: null
+    MeshWatcher: null
+    Metrics: null
+    Revision: default
+    StatusWritingEnabled: null
+    SyncTimeout: 0
+    SystemNamespace: ""
+    XDSUpdater: null
+  Registries:
+    - Kubernetes
+Revision: default
+ServerOptions:
+  EnableProfiling: true
+  GRPCAddr: :15010
+  HTTPAddr: :8080
+  HTTPSAddr: :15017
+  MonitoringAddr: :15014
+  SecureGRPCAddr: :15012
+  TLSOptions:
+    CaCertFile: ""
+    CertFile: ""
+    CipherSuits: null
+    KeyFile: ""
+    TLSCipherSuites: null
+ShutdownDuration: 10000000000

@@ -11,6 +11,7 @@ import (
 	"github.com/lx1036/gateway/pkg/config"
 	"github.com/lx1036/gateway/pkg/util/protomarshal"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
 	"os"
 	"os/signal"
@@ -61,6 +62,9 @@ func newProxyCommand() *cobra.Command {
 		},
 		//PersistentPreRunE: configureLogging,
 		RunE: func(c *cobra.Command, args []string) error {
+			c.Flags().VisitAll(func(flag *pflag.Flag) {
+				klog.Infof("FLAG: --%s=%q", flag.Name, flag.Value)
+			})
 
 			proxyConfig, err := config.ConstructProxyConfig(proxyArgs.MeshConfigFile, proxyArgs.ServiceCluster, proxyArgs.Concurrency)
 			if err != nil {
