@@ -21,6 +21,7 @@ type IngressConfig struct {
 	XDSUpdater istiomodel.XDSUpdater
 }
 
+// NewIngressConfig creates a new ConfigStore
 func NewIngressConfig(localKubeClient kube.Client, xdsUpdater istiomodel.XDSUpdater, namespace string, options common.Options) *IngressConfig {
 	clusterId := options.ClusterId
 	if clusterId == "Kubernetes" {
