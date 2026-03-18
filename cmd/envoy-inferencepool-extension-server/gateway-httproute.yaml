@@ -1,0 +1,136 @@
+
+
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: inference-pool-with-httproute
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: inference-pool-with-httproute
+  namespace: envoy-gateway-system
+spec:
+  gatewayClassName: inference-pool-with-httproute
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: envoy-gateway-basic
+#      namespace: envoy-gateway-system
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 7788
+
+---
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: inference-pool-with-httproute
+  namespace: envoy-gateway-system
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: inference-pool-with-httproute
+      namespace: envoy-gateway-system
+  rules:
+    - backendRefs:
+        - group: inference.networking.k8s.io
+          kind: InferencePool
+          name: envoy-ai-gateway-basic-testupstream
+          namespace: envoy-gateway-system
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+      timeouts:
+        request: 60s
+
+---
+
+#  EnvoyExtensionPolicy + EnvoyPatchPolicy 是不是可以替代 ExtensionServer?
+
+
+# 参考：https://gateway.envoyproxy.io/contributions/design/envoy-extension-policy/
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyExtensionPolicy
+metadata:
+  name: aibrix-gateway-plugins-extension-policy
+  namespace: envoy-gateway-system
+spec:
+  extProc:
+    - backendRefs:
+        - group: ''
+          kind: Service
+          name: envoy-ai-gateway-basic-testupstream-epp
+          port: 9002
+      failOpen: false
+      messageTimeout: 60s
+      processingMode:
+        request:
+          body: Buffered
+        response:
+          body: Streamed
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: inference-pool-with-httproute
+
+---
+
+# https://gateway.envoyproxy.io/contributions/design/envoy-patch-policy/
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  name: aibrix-epp
+  namespace: aibrix-system
+spec:
+  jsonPatches:
+    - name: aibrix-system/aibrix-eg/http
+      operation:
+        op: add
+        path: /virtual_hosts/0/routes/0
+        value:
+          match:
+            headers:
+              - name: routing-strategy
+                string_match:
+                  safe_regex:
+                    regex: .*
+            prefix: /
+          name: original_route
+          route:
+            cluster: original_destination_cluster
+            timeout: 120s
+          typed_per_filter_config:
+            envoy.filters.http.ext_proc/envoyextensionpolicy/aibrix-system/aibrix-gateway-plugins-extension-policy/extproc/0:
+              '@type': type.googleapis.com/envoy.config.route.v3.FilterConfig
+              config: {}
+      type: type.googleapis.com/envoy.config.route.v3.RouteConfiguration
+
+    - name: envoy-patch-policy-override2
+      operation:
+        op: add
+        path: ''
+        value:
+          connect_timeout: 6s
+          dns_lookup_family: V4_ONLY
+          lb_policy: CLUSTER_PROVIDED
+          name: original_destination_cluster
+          original_dst_lb_config:
+            http_header_name: target-pod
+            use_http_header: true
+          type: ORIGINAL_DST
+      type: type.googleapis.com/envoy.config.cluster.v3.Cluster
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: aibrix-eg
+  type: JSONPatch

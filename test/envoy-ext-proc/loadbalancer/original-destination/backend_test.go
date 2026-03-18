@@ -1,4 +1,4 @@
-package main
+package original_destination
 
 import (
 	"context"

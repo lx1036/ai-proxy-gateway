@@ -49,6 +49,7 @@ static_resources:
                         envoy_grpc:
 #                          cluster_name: original_destination_cluster
                           cluster_name: ext-proc
+                          authority: 127.0.0.1:50051
 
                   # https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/examples
                   # 简单代理 proxy, 需要加上这个 http_filters: envoy.filters.http.router
@@ -138,7 +139,7 @@ static_resources:
     - name: original_destination_cluster
       connect_timeout: 500s
       type: ORIGINAL_DST
-      lb_policy: CLUSTER_PROVIDED
+      lb_policy: CLUSTER_PROVIDED # https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-enum-value-config-cluster-v3-cluster-lbpolicy-cluster-provided
       dns_lookup_family: V4_ONLY
       original_dst_lb_config: # 会代理到 target-pod 指定的 ip:port 地址
         use_http_header: true

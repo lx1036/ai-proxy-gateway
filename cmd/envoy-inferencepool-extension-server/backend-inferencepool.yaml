@@ -1,0 +1,22 @@
+
+
+
+apiVersion: inference.networking.k8s.io/v1
+kind: InferencePool
+metadata:
+  name: envoy-ai-gateway-basic-testupstream
+  namespace: envoy-gateway-system
+
+spec:
+  endpointPickerRef:
+    failureMode: FailClose
+    group: ''
+    kind: Service
+    name: envoy-ai-gateway-basic-testupstream-epp
+    port:
+      number: 9002
+  selector:
+    matchLabels:
+      app: envoy-ai-gateway-basic-testupstream
+  targetPorts:
+    - number: 8080
