@@ -1,8 +1,8 @@
 package collector
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 )
 
 type Collector struct {

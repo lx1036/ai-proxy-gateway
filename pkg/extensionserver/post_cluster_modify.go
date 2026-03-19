@@ -1,8 +1,8 @@
 package extensionserver
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	gwaiev1 "sigs.k8s.io/gateway-api-inference-extension/api/v1"
@@ -10,6 +10,13 @@ import (
 
 	egextension "github.com/envoyproxy/gateway/proto/extension"
 )
+
+/**
+ * Purpose: Modify clusters for custom backends
+ * Execution Context: Per-cluster, only for custom backend clusters
+ * Resources Modified: envoy.config.cluster.v3.Cluster
+ *
+ */
 
 // PostClusterModify is called by Envoy Gateway to allow extensions to modify clusters after they are generated.
 // This method specifically handles InferencePool backend references by configuring clusters with ORIGINAL_DST
@@ -33,15 +40,54 @@ func (s *Server) PostClusterModify(_ context.Context, req *egextension.PostClust
 	// BackendExtensionResources contains unstructured Kubernetes resources that were
 	// referenced in the AIGatewayRoute's BackendRefs with non-empty Group and Kind fields.
 	// If we found an InferencePool, configure the cluster for ORIGINAL_DST.
-	if inferencePools := s.constructInferencePoolsFrom(req.PostClusterContext.BackendExtensionResources); inferencePools != nil {
-		if len(inferencePools) != 1 {
-			return nil, fmt.Errorf("BUG: at most one inferencepool can be referenced per route rule")
-		}
-		s.handleInferencePoolCluster(req.Cluster, inferencePools[0])
+
+	inferencePools := s.constructInferencePoolsFrom(req.PostClusterContext.BackendExtensionResources)
+	if len(inferencePools) == 0 {
+		// No InferencePool resources, skip.
+		return &egextension.PostClusterModifyResponse{Cluster: req.Cluster}, nil
 	}
+
+	if len(inferencePools) != 1 {
+		return nil, fmt.Errorf("BUG: at most one inferencepool can be referenced per route rule but found %d", len(inferencePools))
+	}
+
+	// 修改 一个 cluster
+	s.handleInferencePoolCluster(req.Cluster, inferencePools[0])
 
 	return &egextension.PostClusterModifyResponse{Cluster: req.Cluster}, nil
 }
+
+/**
+修改 一个 cluster:
+
+  - version_info: 8e24bbecdc3d478e3f4f09ba559e7d170408d47c7f504b725df9ac4a94bf2305
+    cluster:
+      '@type': type.googleapis.com/envoy.config.cluster.v3.Cluster
+      name: httproute/envoy-gateway-system/inference-pool-with-httproute/rule/0
+      type: ORIGINAL_DST
+      connect_timeout: 10s
+      per_connection_buffer_limit_bytes: 32768
+      lb_policy: CLUSTER_PROVIDED
+      circuit_breakers:
+        thresholds:
+          - max_retries: 1024
+      dns_lookup_family: V4_PREFERRED
+      metadata:
+        filter_metadata:
+          aigateway.envoy.io:
+            per_route_rule_inference_pool: envoy-gateway-system/envoy-ai-gateway-basic-testupstream/envoy-ai-gateway-basic-testupstream-epp/9002/duplex/false
+          envoy-gateway:
+            resources:
+              - name: inference-pool-with-httproute
+                kind: HTTPRoute
+                namespace: envoy-gateway-system
+      common_lb_config: {}
+      ignore_health_on_host_removal: true
+      original_dst_lb_config:
+        use_http_header: true
+        http_header_name: x-gateway-destination-endpoint
+    last_updated: "2026-03-18T11:50:39.496Z"
+*/
 
 // handleInferencePoolCluster modifies clusters that have InferencePool backends to work with the
 // Gateway API Inference Extension's endpoint picker pattern.
@@ -79,6 +125,12 @@ func (s *Server) handleInferencePoolCluster(cluster *clusterv3.Cluster, inferenc
 	// With ORIGINAL_DST, endpoints are determined dynamically via headers, not EDS.
 	cluster.EdsClusterConfig = nil
 
+	/**
+	  metadata:
+	    filter_metadata:
+	      aigateway.envoy.io:
+	        per_route_rule_inference_pool: envoy-gateway-system/envoy-ai-gateway-basic-testupstream/envoy-ai-gateway-basic-testupstream-epp/9002/duplex/false
+	*/
 	// Add InferencePool metadata to the cluster for reference by other components.
 	buildEPPMetadataForCluster(cluster, inferencePool)
 }

@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"github.com/lx1036/gateway/pkg/cache/collector"
 	v1 "k8s.io/api/core/v1"
@@ -9,7 +10,6 @@ import (
 	"k8s.io/klog/v2"
 	"sync"
 	"time"
-	"context"
 
 	k8sCache "k8s.io/client-go/tools/cache"
 )

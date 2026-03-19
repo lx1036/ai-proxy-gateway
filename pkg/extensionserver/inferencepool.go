@@ -5,11 +5,16 @@ import (
 	egextension "github.com/envoyproxy/gateway/proto/extension"
 	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	extprocv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
+	httpconnectionmanagerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	gwaiev1 "sigs.k8s.io/gateway-api-inference-extension/api/v1"
+	"time"
 
 	"encoding/json"
 )
@@ -72,6 +77,12 @@ func (s *Server) constructInferencePoolsFrom(extensionResources []*egextension.E
 	}
 
 	return inferencePools
+}
+
+// buildMetadataForInferencePool adds InferencePool metadata to the route for reference by other components.
+func buildEPPMetadataForRoute(route *routev3.Route, inferencePool *gwaiev1.InferencePool) {
+	// Initialize route metadata structure if not present.
+	buildEPPMetadata(route.Metadata, inferencePool)
 }
 
 // buildMetadataForInferencePool adds InferencePool metadata to the cluster for reference by other components.
@@ -166,4 +177,107 @@ func portForInferencePool(pool *gwaiev1.InferencePool) uint32 {
 	}
 	// Safe conversion: portNumber is validated to be in range [0, 65535].
 	return uint32(portNumber) // #nosec G1151
+}
+
+// httpFilterNameForInferencePool returns the name of the ext_proc cluster for the given InferencePool.
+func httpFilterNameForInferencePool(pool *gwaiev1.InferencePool) string {
+	return fmt.Sprintf("envoy.filters.http.ext_proc/endpointpicker/%s_%s_ext_proc", pool.GetName(), pool.GetNamespace())
+}
+
+// buildInferencePoolHTTPFilter returns a HTTP filter for InferencePool.
+func buildInferencePoolHTTPFilter(pool *gwaiev1.InferencePool) (*httpconnectionmanagerv3.HttpFilter, error) {
+	poolFilter := buildHTTPFilterForInferencePool(pool)
+	a, err := toAny(poolFilter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build HTTP filter for InferencePool %s/%s: %w", pool.GetNamespace(), pool.GetName(), err)
+	}
+	return &httpconnectionmanagerv3.HttpFilter{
+		Name:       httpFilterNameForInferencePool(pool),
+		ConfigType: &httpconnectionmanagerv3.HttpFilter_TypedConfig{TypedConfig: a},
+	}, nil
+}
+
+// buildHTTPFilterForInferencePool returns the HTTP filter for the given InferencePool.
+func buildHTTPFilterForInferencePool(pool *gwaiev1.InferencePool) *extprocv3.ExternalProcessor {
+	// Read processing body mode from annotations, default to "duplex" (FULL_DUPLEX_STREAMED)
+	processingBodyMode := getProcessingBodyModeFromAnnotations(pool)
+
+	// Read allow mode override from annotations, default to false
+	allowModeOverride := getAllowModeOverrideFromAnnotations(pool)
+
+	return &extprocv3.ExternalProcessor{
+		GrpcService: &corev3.GrpcService{
+			TargetSpecifier: &corev3.GrpcService_EnvoyGrpc_{
+				EnvoyGrpc: &corev3.GrpcService_EnvoyGrpc{
+					ClusterName: clusterNameForInferencePool(pool),
+					// Authority = 请求的【目标主机 + 端口】
+					// 它是 HTTP/2、HTTP/3 里的伪请求头，作用等同于 HTTP/1.1 里的 Host 请求头
+					// 唯一作用：告诉服务器你要访问的是哪个服务 / 域名
+					Authority: authorityForInferencePool(pool),
+				},
+			},
+		},
+		ProcessingMode: &extprocv3.ProcessingMode{
+			RequestHeaderMode:   extprocv3.ProcessingMode_SEND,
+			RequestBodyMode:     processingBodyMode,
+			RequestTrailerMode:  extprocv3.ProcessingMode_SEND,
+			ResponseBodyMode:    processingBodyMode,
+			ResponseHeaderMode:  extprocv3.ProcessingMode_SEND,
+			ResponseTrailerMode: extprocv3.ProcessingMode_SEND,
+		},
+		AllowModeOverride: allowModeOverride,
+		MessageTimeout:    durationpb.New(300 * time.Second),
+		FailureModeAllow:  false,
+	}
+}
+
+func clusterNameForInferencePool(pool *gwaiev1.InferencePool) string {
+	return fmt.Sprintf("envoy.clusters.endpointpicker_%s_%s_ext_proc", pool.GetName(), pool.GetNamespace())
+}
+
+// getProcessingBodyModeFromAnnotations reads the processing body mode from InferencePool annotations.
+// Returns FULL_DUPLEX_STREAMED for "duplex" (default) or BUFFERED for "buffered".
+func getProcessingBodyModeFromAnnotations(pool *gwaiev1.InferencePool) extprocv3.ProcessingMode_BodySendMode {
+	annotations := pool.GetAnnotations()
+	if annotations == nil {
+		return extprocv3.ProcessingMode_FULL_DUPLEX_STREAMED // default to duplex
+	}
+
+	mode, exists := annotations[processingBodyModeAnnotation]
+	if !exists {
+		return extprocv3.ProcessingMode_FULL_DUPLEX_STREAMED // default to duplex
+	}
+
+	switch mode {
+	case "buffered":
+		return extprocv3.ProcessingMode_BUFFERED
+	case "duplex":
+		return extprocv3.ProcessingMode_FULL_DUPLEX_STREAMED
+	default:
+		// Invalid value, default to duplex
+		return extprocv3.ProcessingMode_FULL_DUPLEX_STREAMED
+	}
+}
+
+// getAllowModeOverrideFromAnnotations reads the allow mode override setting from InferencePool annotations.
+// Returns false by default, true if annotation is set to "true".
+func getAllowModeOverrideFromAnnotations(pool *gwaiev1.InferencePool) bool {
+	annotations := pool.GetAnnotations()
+	if annotations == nil {
+		return false // default to false
+	}
+
+	value, exists := annotations[allowModeOverrideAnnotation]
+	if !exists {
+		return false // default to false
+	}
+
+	return value == "true"
+}
+
+// authorityForInferencePool formats the gRPC authority based on the given InferencePool.
+func authorityForInferencePool(pool *gwaiev1.InferencePool) string {
+	ns := pool.GetNamespace()
+	svc := pool.Spec.EndpointPickerRef.Name
+	return fmt.Sprintf("%s.%s.svc:%d", svc, ns, portForInferencePool(pool))
 }

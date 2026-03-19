@@ -5,11 +5,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/rest"
-	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
 
 	// k8s schema
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
@@ -17,6 +17,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	// istio schema
+	clientextensions "istio.io/client-go/pkg/apis/extensions/v1alpha1"
 	clientnetworking "istio.io/client-go/pkg/apis/networking/v1"
 	clientnetworkingalpha "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	clientnetworkingbeta "istio.io/client-go/pkg/apis/networking/v1beta1"
@@ -24,7 +25,6 @@ import (
 	clientsecuritybeta "istio.io/client-go/pkg/apis/security/v1beta1"
 	clienttelemetry "istio.io/client-go/pkg/apis/telemetry/v1"
 	clienttelemetryalpha "istio.io/client-go/pkg/apis/telemetry/v1alpha1"
-	clientextensions "istio.io/client-go/pkg/apis/extensions/v1alpha1"
 
 	// gateway-api schema
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"

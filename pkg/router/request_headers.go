@@ -1,8 +1,8 @@
 package router
 
 import (
-	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	configPb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 )
 
 func (s *Server) HandleRequestHeaders(request *extProcPb.ProcessingRequest) *extProcPb.ProcessingResponse {

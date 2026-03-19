@@ -3,9 +3,9 @@ package mesh
 import (
 	"github.com/lx1036/gateway/pkg/util/protomarshal"
 	"google.golang.org/protobuf/types/known/durationpb"
+	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	"istio.io/api/networking/v1alpha3"
-	wrappers "google.golang.org/protobuf/types/known/wrapperspb"
 
 	"time"
 )

@@ -28,4 +28,11 @@ kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extens
 # 2. 问题
 EnvoyExtensionPolicy 是否可以替代掉 HTTPRoute + InferencePool + ExtensionServer? 
 或者说，有了 EnvoyExtensionPolicy，为啥还有 ExtensionServer?
-EnvoyExtensionPolicy + EnvoyPatchPolicy 是不是可以替代 ExtensionServer?
+EnvoyExtensionPolicy + EnvoyPatchPolicy(类似 istio EnvoyFilter) 是不是可以替代 ExtensionServer?
+
+
+
+# 3. 参考文档
+* envoygateway-extension-server 在将 xDS 配置发送给 Envoy Proxy之前，通过 gRPC 调用外部服务器 extension server:
+https://gateway.envoyproxy.io/docs/tasks/extensibility/extension-server/
+
