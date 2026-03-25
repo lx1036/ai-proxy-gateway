@@ -20,18 +20,27 @@ func NewServer() *Server {
 }
 
 func (s *Server) Process(stream extProcPb.ExternalProcessor_ProcessServer) error {
+	ctx := stream.Context()
 
-	klog.Infof("processing request ")
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 
-	request, err := stream.Recv()
-	if err != nil {
-		klog.Errorf("error receiving request %v", err)
-		return err
+		klog.Infof("processing request ")
+
+		request, err := stream.Recv()
+		if err != nil {
+			klog.Errorf("error receiving request %v", err)
+			return err
+		}
+
+		response, err := s.handleProcessingRequest(request)
+
+		return s.sendProcessingResponse(stream, response)
 	}
-
-	response, err := s.handleProcessingRequest(request)
-
-	return s.sendProcessingResponse(stream, response)
 }
 
 func (s *Server) handleProcessingRequest(request *extProcPb.ProcessingRequest) (*extProcPb.ProcessingResponse, error) {

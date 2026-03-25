@@ -8,8 +8,7 @@ import (
 	"k8s.io/klog/v2"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
@@ -32,11 +31,10 @@ func main() {
 		klog.Fatalf("failed to listen: %v", err)
 	}
 
-	var gracefulStop = make(chan os.Signal, 1)
-	signal.Notify(gracefulStop, syscall.SIGINT, syscall.SIGTERM)
+	ctx := ctrl.SetupSignalHandler()
 	go func() {
-		sig := <-gracefulStop
-		klog.Warningf("signal received: %v, initiating graceful shutdown...", sig)
+		<-ctx.Done()
+		klog.Warningf("initiating graceful shutdown...")
 		//routerServer.Shutdown()
 		grpcServer.GracefulStop()
 		os.Exit(0)
