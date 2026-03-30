@@ -68,7 +68,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.22.4 // indirect
 	github.com/go-openapi/jsonreference v0.21.4 // indirect
@@ -177,10 +177,19 @@ require (
 require (
 	github.com/envoyproxy/gateway v1.7.1
 	github.com/envoyproxy/go-control-plane v0.14.0
+	github.com/vllm-project/aibrix v0.6.0
 	sigs.k8s.io/controller-runtime v0.23.1
+	sigs.k8s.io/lws v0.8.0
+	sigs.k8s.io/rbgs v0.7.0-alpha.1
 )
 
-require github.com/go-logr/zapr v1.3.0 // indirect
+require (
+	github.com/go-logr/zapr v1.3.0 // indirect
+	github.com/kubewharf/godel-scheduler-api v0.0.0-20240910073424-8068ac118f44 // indirect
+	github.com/ray-project/kuberay/ray-operator v1.2.1 // indirect
+)
 
 // 使用 replace 强制降级到 alpha 版本
 replace istio.io/api => istio.io/api v1.29.0-alpha.0.0.20260302212057-b10ab91e9ded
+
+replace sigs.k8s.io/rbgs => github.com/sgl-project/rbg v0.7.0-alpha.1

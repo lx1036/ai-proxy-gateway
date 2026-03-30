@@ -1,4 +1,4 @@
-package controller
+package inferencepool
 
 import (
 	"context"
@@ -27,29 +27,17 @@ func (c *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	    matchLabels:
 	      app: envoy-ai-gateway-basic-testupstream
 	*/
-	filter := predicate.Funcs{
-		CreateFunc: func(e event.TypedCreateEvent[client.Object]) bool {
-			pod := e.Object.(*corev1.Pod)
-			return c.Datastore.PoolLabelsMatch(pod.GetLabels())
-		},
-		UpdateFunc: func(ue event.UpdateEvent) bool {
-			oldPod := ue.ObjectOld.(*corev1.Pod)
-			newPod := ue.ObjectNew.(*corev1.Pod)
-			return c.Datastore.PoolLabelsMatch(oldPod.GetLabels()) || c.Datastore.PoolLabelsMatch(newPod.GetLabels())
-		},
-		DeleteFunc: func(de event.DeleteEvent) bool {
-			pod := de.Object.(*corev1.Pod)
-			return c.Datastore.PoolLabelsMatch(pod.GetLabels())
-		},
-		GenericFunc: func(ge event.GenericEvent) bool {
-			pod := ge.Object.(*corev1.Pod)
-			return c.Datastore.PoolLabelsMatch(pod.GetLabels())
-		},
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
-		WithEventFilter(filter).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			if pod, ok := object.(*corev1.Pod); ok {
+				return c.Datastore.PoolLabelsMatch(pod.GetLabels())
+			}
+
+			// TODO: StatefulSet
+
+			return false
+		})).
 		Complete(c)
 }
 

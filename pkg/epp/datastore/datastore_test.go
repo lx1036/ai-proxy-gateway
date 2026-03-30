@@ -38,8 +38,10 @@ func TestDataStore(test *testing.T) {
 	datastore := NewDatastore(ctx, factory)
 
 	cfg := ctrl.GetConfigOrDie()
+	// informer watch 并从本地 indexer cache 中获取
 	//mgr, _ := ctrl.NewManager(cfg, ctrl.Options{})
 
+	// 每次直接从 apiserver 里取
 	k8sClient, err := client.New(cfg, client.Options{})
 	if err != nil {
 		klog.Fatalf("fail to create k8s client: %v", err)

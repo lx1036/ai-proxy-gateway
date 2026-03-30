@@ -1,4 +1,4 @@
-package controller
+package inferencepool
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"github.com/lx1036/gateway/pkg/epp/datastore"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
+
+	"github.com/lx1036/gateway/pkg/epp/datalayer"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,26 +28,50 @@ func (c *InferencePoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (c *InferencePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	obj := &v1.InferencePool{}
-	if err := c.Get(ctx, req.NamespacedName, obj); err != nil {
+	pool := &v1.InferencePool{}
+	if err := c.Get(ctx, req.NamespacedName, pool); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("InferencePool not found. Clearing the datastore")
-			c.Datastore.Clear(obj)
+			c.Datastore.Clear()
 			return ctrl.Result{}, nil
 		}
 
 		return ctrl.Result{}, fmt.Errorf("unable to get InferencePool - %w", err)
 	}
 
-	if !obj.GetDeletionTimestamp().IsZero() {
+	if pool.DeletionTimestamp != nil {
 		klog.Infof("InferencePool is marked for deletion. Clearing the datastore")
-		c.Datastore.Clear(obj)
+		c.Datastore.Clear()
 		return ctrl.Result{}, nil
 	}
 
-	if err := c.Datastore.StorePools(obj); err != nil {
+	endpointPool := InferencePoolToEndpointPool(pool)
+	if err := c.Datastore.ResyncPods(ctx, c.Client, endpointPool); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update datastore - %w", err)
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func InferencePoolToEndpointPool(inferencePool *v1.InferencePool) *datalayer.EndpointPool {
+	if inferencePool == nil {
+		return nil
+	}
+
+	selector := make(map[string]string, len(inferencePool.Spec.Selector.MatchLabels))
+	for k, v := range inferencePool.Spec.Selector.MatchLabels {
+		selector[string(k)] = string(v)
+	}
+
+	targetPorts := make([]int, 0, len(inferencePool.Spec.TargetPorts))
+	for _, p := range inferencePool.Spec.TargetPorts {
+		targetPorts = append(targetPorts, int(p.Number))
+	}
+
+	return &datalayer.EndpointPool{
+		Name:        inferencePool.Name,
+		Namespace:   inferencePool.Namespace,
+		Selector:    selector,
+		TargetPorts: targetPorts,
+	}
 }

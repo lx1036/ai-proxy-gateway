@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
-	"github.com/go-logr/logr"
-	"github.com/lx1036/gateway/pkg/epp/controller"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 	"net"

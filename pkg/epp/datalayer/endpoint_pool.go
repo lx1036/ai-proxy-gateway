@@ -1,10 +1,10 @@
 package datalayer
 
 type EndpointPool struct {
-	Selector    map[string]string
-	TargetPorts []int
 	Namespace   string
 	Name        string
+	Selector    map[string]string
+	TargetPorts []int
 }
 
 type EndpointLifecycle struct {
