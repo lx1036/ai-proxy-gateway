@@ -3,8 +3,12 @@ package rolebasedgroup
 import (
 	"context"
 	appsv1 "k8s.io/api/apps/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	appsapplyv1 "k8s.io/client-go/applyconfigurations/apps/v1"
+	metaapplyv1 "k8s.io/client-go/applyconfigurations/meta/v1"
+	"maps"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -54,3 +58,5 @@ func (r *RoleBasedGroupReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 }
+
+// RBG -> StatefulSet
