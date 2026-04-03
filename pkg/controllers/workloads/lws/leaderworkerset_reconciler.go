@@ -3,7 +3,6 @@ package lws
 import (
 	"context"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	appsapplyv1 "k8s.io/client-go/applyconfigurations/apps/v1"
 	coreapplyv1 "k8s.io/client-go/applyconfigurations/core/v1"
@@ -56,9 +55,9 @@ func (r *LeaderWorkerSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			if statefulSet, ok := object.(*appsv1.StatefulSet); ok {
 				_, exist := statefulSet.Labels[leaderworkersetv1.SetNameLabelKey]
-				//if exist {
-				klog.Infof("[lws_controller] watch appsv1.StatefulSet resource: %s/%s", statefulSet.Namespace, statefulSet.Name)
-				//}
+				if exist {
+					klog.Infof("[lws_controller] watch appsv1.StatefulSet resource: %s/%s", statefulSet.Namespace, statefulSet.Name)
+				}
 				return exist
 			}
 
@@ -88,8 +87,29 @@ func (r *LeaderWorkerSetReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
+    /////////////////////// for debug ///////////////////////
+	// INFO: fail to list statefulset: Index with name field:.metadata.controller does not exist
+	var stsList appsv1.StatefulSetList
+	err := r.List(ctx, &stsList, client.InNamespace(lws.Namespace), client.MatchingFields{".metadata.controller": string(lws.UID)})
+	if err != nil {
+		klog.Errorf("fail to list statefulset: %v", err)
+		return ctrl.Result{}, err
+	}
+	if len(stsList.Items) == 0 {
+		klog.Infof("No StatefulSet found for LeaderWorkerSet %s/%s", lws.Namespace, lws.Name)
+		return ctrl.Result{}, nil
+	}
+	for _, item := range stsList.Items {
+		klog.Infof("StatefulSet %s/%s found for LeaderWorkerSet %s/%s", item.Namespace, item.Name, lws.Namespace, lws.Name)
+	}
+	//if len(stsList.Items) >= 1 {
+	//	klog.Errorf("More than one StatefulSet found for LeaderWorkerSet %s/%s", lws.Namespace, lws.Name)
+	//	return ctrl.Result{}, nil
+	//}
+	/////////////////////// for debug ///////////////////////
+
 	leaderSts := &appsv1.StatefulSet{}
-	err := r.Get(ctx, types.NamespacedName{Name: lws.Name, Namespace: lws.Namespace}, leaderSts)
+	err = r.Get(ctx, types.NamespacedName{Name: lws.Name, Namespace: lws.Namespace}, leaderSts)
 	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("fail to fetch statefulset: %v", err)
 		return ctrl.Result{}, err
@@ -113,6 +133,10 @@ func (r *LeaderWorkerSetReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	var updatedRevision *appsv1.ControllerRevision
 	if leaderSts != nil {
 		currentRevision, err := NewRevision(ctx, r.Client, lws, "")
+		if err != nil {
+			klog.Errorf("fail to get or create revision: %v", err)
+			return ctrl.Result{}, err
+		}
 		if currentRevision != revision {
 			updatedRevision = currentRevision
 		}
@@ -138,12 +162,8 @@ func (r *LeaderWorkerSetReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	(2) PD 分离场景下，可以对齐 P 和 D 的版本比率
 	*/
 
-	//leaderSts.Spec.UpdateStrategy.RollingUpdate.Partition
-
-	partition, replicas := int32(1), int32(2)
-
 	// 2. create leader sts
-	stsApplyConfiguration, err := r.constructLeaderStatefulSetApplyConfiguration(lws, partition, replicas, revision)
+	stsApplyConfiguration, err := r.constructLeaderStatefulSetApplyConfiguration(lws, revision)
 
 	// INFO: leader sts 的 owner 是 lws
 	if err = setControllerReferenceWithStatefulSet(lws, stsApplyConfiguration, r.Scheme); err != nil {
@@ -169,7 +189,8 @@ func (r *LeaderWorkerSetReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 }
 
 func (r *LeaderWorkerSetReconciler) constructLeaderStatefulSetApplyConfiguration(lws *leaderworkersetv1.LeaderWorkerSet,
-	partition, replicas int32, revision *appsv1.ControllerRevision) (*appsapplyv1.StatefulSetApplyConfiguration, error) {
+	revision *appsv1.ControllerRevision) (*appsapplyv1.StatefulSetApplyConfiguration, error) {
+
 	// INFO: 这里容许 LeaderTemplate 为空，这样来表示 单节点模式，替换掉 Deployment 部署单机 LLM 推理服务
 	var podTemplateSpec corev1.PodTemplateSpec
 	if lws.Spec.LeaderWorkerTemplate.LeaderTemplate != nil {
@@ -214,14 +235,14 @@ func (r *LeaderWorkerSetReconciler) constructLeaderStatefulSetApplyConfiguration
 		WithSpec(
 			appsapplyv1.StatefulSetSpec().
 				WithServiceName(lws.Name).
-				WithReplicas(replicas). // INFO: 有 replicas 个 leader pods
+				WithReplicas(*lws.Spec.Replicas). // INFO: 直接使用 lws 的 partition. 有 replicas 个 leader pods
 				WithSelector(metaapplyv1.LabelSelector().WithMatchLabels(matchLabels)).
 				WithTemplate(&podTemplateApplyConfiguration).
 				WithPodManagementPolicy(appsv1.ParallelPodManagement). // OrderedReady: 依次创建；Parallel: 并行创建. worker pod 可以 Parallel
 				WithUpdateStrategy(appsapplyv1.StatefulSetUpdateStrategy().
 					WithType(appsv1.StatefulSetUpdateStrategyType(lws.Spec.RolloutStrategy.Type)).
 					WithRollingUpdate(appsapplyv1.RollingUpdateStatefulSetStrategy().
-						WithPartition(partition).
+						WithPartition(*lws.Spec.RolloutStrategy.RollingUpdateConfiguration.Partition). // INFO: 直接使用 lws 的 partition
 						WithMaxUnavailable(lws.Spec.RolloutStrategy.RollingUpdateConfiguration.MaxUnavailable),
 					),
 				),
@@ -229,16 +250,6 @@ func (r *LeaderWorkerSetReconciler) constructLeaderStatefulSetApplyConfiguration
 
 	// skip pvc
 
-	appsv1.StatefulSet{
-		TypeMeta:   metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{},
-		Spec:       appsv1.StatefulSetSpec{},
-		Status:     appsv1.StatefulSetStatus{},
-	}
-
 	return statefulSetConfig, nil
 }
 
-func (r *LeaderWorkerSetReconciler) partitionUpdate(ctx context.Context, lws *leaderworkersetv1.LeaderWorkerSet) {
-
-}

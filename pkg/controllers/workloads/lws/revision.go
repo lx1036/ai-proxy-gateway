@@ -39,7 +39,7 @@ func GetOrCreateRevision(ctx context.Context, k8sClient client.Client, lws *lead
 		return revision, nil
 	}
 
-	// 2.create revision
+	// INFO: 2.create revision
 	revision, err = NewRevision(ctx, k8sClient, lws, revisionKey)
 	if err != nil {
 		klog.Errorf("new revision object error: %v", err)

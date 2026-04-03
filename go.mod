@@ -56,7 +56,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.18.1 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/docker/cli v29.2.0+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
@@ -179,6 +179,7 @@ require (
 	github.com/envoyproxy/go-control-plane v0.14.0
 	github.com/vllm-project/aibrix v0.6.0
 	sigs.k8s.io/controller-runtime v0.23.1
+	sigs.k8s.io/jobset v0.11.1
 	sigs.k8s.io/lws v0.8.0
 	sigs.k8s.io/rbgs v0.7.0-alpha.1
 )

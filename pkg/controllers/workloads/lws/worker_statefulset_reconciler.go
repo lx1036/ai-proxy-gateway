@@ -56,7 +56,7 @@ func (r *WorkerStatefulSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&corev1.Pod{}). // all namespace pods
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			if pod, ok := object.(*corev1.Pod); ok {
-				_, exist := pod.Labels[leaderworkersetv1.SetNameLabelKey]
+				_, exist := pod.Labels[leaderworkersetv1.SetNameLabelKey] // INFO: 有 lws->sts->pods chain 创建的 pods
 				if exist {
 					klog.Infof("[sts_controller] watch corev1.Pod resource: %s/%s", pod.Namespace, pod.Name)
 				}
@@ -84,8 +84,6 @@ func (r *WorkerStatefulSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *WorkerStatefulSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.Infof("req: %s/%s", req.Namespace, req.Name)
-
 	var leaderPod corev1.Pod
 	if err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, &leaderPod); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
