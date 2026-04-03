@@ -1,15 +1,13 @@
 package lws
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"hash"
 	"hash/fnv"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/dump"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
@@ -39,7 +37,7 @@ func GetOrCreateRevision(ctx context.Context, k8sClient client.Client, lws *lead
 		return revision, nil
 	}
 
-	// INFO: 2.create revision
+	// 2.create revision
 	revision, err = NewRevision(ctx, k8sClient, lws, revisionKey)
 	if err != nil {
 		klog.Errorf("new revision object error: %v", err)
@@ -120,16 +118,7 @@ func HashRevision(revision *appsv1.ControllerRevision) string {
 
 func deepHashObject(hasher hash.Hash, objectToWrite interface{}) {
 	hasher.Reset()
-	printer := spew.ConfigState{
-		Indent:         " ",
-		SortKeys:       true,
-		DisableMethods: true,
-		SpewKeys:       true,
-	}
-	_, err := printer.Fprintf(hasher, "%#v", objectToWrite)
-	if err != nil {
-		return
-	}
+	fmt.Fprintf(hasher, "%v", dump.ForHash(objectToWrite))
 }
 
 func getRevisionPatchForLWS(lws *leaderworkersetv1.LeaderWorkerSet) ([]byte, error) {
@@ -142,13 +131,17 @@ func getRevisionPatchForLWS(lws *leaderworkersetv1.LeaderWorkerSet) ([]byte, err
 		}
 	}
 
-	str := &bytes.Buffer{}
+	/*str := &bytes.Buffer{}
 	if err := unstructured.UnstructuredJSONScheme.Encode(clone, str); err != nil {
 		return nil, err
 	}
-
 	var raw map[string]interface{}
 	if err := json.Unmarshal(str.Bytes(), &raw); err != nil {
+		return nil, err
+	}*/
+
+	raw, err := runtime.DefaultUnstructuredConverter.ToUnstructured(clone)
+	if err != nil {
 		return nil, err
 	}
 
@@ -197,24 +190,26 @@ func GetRevision(ctx context.Context, k8sClient client.Client, lws *leaderworker
 	return revisions[0], nil
 }
 
-func ListRevisions(ctx context.Context, k8sClient client.Client, parent metav1.Object, selector labels.Selector) ([]*appsv1.ControllerRevision, error) {
+func ListRevisions(ctx context.Context, k8sClient client.Client, obj metav1.Object, selector labels.Selector) ([]*appsv1.ControllerRevision, error) {
 	// List all revisions in the namespace that match the selector
 	// k get controllerrevisions -n lws-system -l leaderworkerset.sigs.k8s.io/name=lws-min1,leaderworkerset.sigs.k8s.io/template-revision-hash=7dd9b94dfc
 	revisionList := new(appsv1.ControllerRevisionList)
-	err := k8sClient.List(ctx, revisionList, client.InNamespace(parent.GetNamespace()), client.MatchingLabelsSelector{Selector: selector})
+	err := k8sClient.List(ctx, revisionList, client.InNamespace(obj.GetNamespace()), client.MatchingLabelsSelector{Selector: selector})
 	if err != nil {
 		return nil, err
 	}
 
-	history := revisionList.Items
-	var owned []*appsv1.ControllerRevision
-	for i := range history {
-		ref := metav1.GetControllerOfNoCopy(&history[i])
-		if ref == nil || ref.UID == parent.GetUID() { // lws owner 而不是 statefulset owner
-			owned = append(owned, &history[i])
+	var revisions []*appsv1.ControllerRevision
+	for i := range revisionList.Items {
+		revision := &revisionList.Items[i]
+		for _, ownerReference := range revision.OwnerReferences {
+			if ownerReference.UID == obj.GetUID() {
+				revisions = append(revisions, revision)
+			}
 		}
 	}
-	return owned, err
+
+	return revisions, nil
 }
 
 func getHighestRevision(revisions []*appsv1.ControllerRevision) *appsv1.ControllerRevision {
@@ -236,21 +231,21 @@ func getHighestRevision(revisions []*appsv1.ControllerRevision) *appsv1.Controll
 
 // ApplyRevision 根据最新的 revision 回滚生成上一版本的 original lws
 func ApplyRevision(lws *leaderworkersetv1.LeaderWorkerSet, revision *appsv1.ControllerRevision) (*leaderworkersetv1.LeaderWorkerSet, error) {
-	// clone := lws.DeepCopy()
-	str := &bytes.Buffer{}
-	err := unstructured.UnstructuredJSONScheme.Encode(lws, str)
+	clone := lws.DeepCopy()
+	cloneBytes, err := json.Marshal( clone)
+	/*str := &bytes.Buffer{}
+	err := unstructured.UnstructuredJSONScheme.Encode(clone, str)
+	if err != nil {
+		return nil, err
+	}*/
+	patched, err := strategicpatch.StrategicMergePatch(cloneBytes, revision.Data.Raw, clone)
 	if err != nil {
 		return nil, err
 	}
-
-	patched, err := strategicpatch.StrategicMergePatch(str.Bytes(), revision.Data.Raw, lws)
-	if err != nil {
-		return nil, err
-	}
-
 	restoredLws := &leaderworkersetv1.LeaderWorkerSet{}
 	if err = json.Unmarshal(patched, restoredLws); err != nil {
 		return nil, err
 	}
+
 	return restoredLws, nil
 }
