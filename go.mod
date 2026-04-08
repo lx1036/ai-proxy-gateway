@@ -53,10 +53,10 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.18.1 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/docker/cli v29.2.0+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
@@ -177,6 +177,7 @@ require (
 require (
 	github.com/envoyproxy/gateway v1.7.1
 	github.com/envoyproxy/go-control-plane v0.14.0
+	github.com/go-zeromq/zmq4 v0.17.0
 	github.com/vllm-project/aibrix v0.6.0
 	sigs.k8s.io/controller-runtime v0.23.1
 	sigs.k8s.io/jobset v0.11.1
@@ -186,6 +187,7 @@ require (
 
 require (
 	github.com/go-logr/zapr v1.3.0 // indirect
+	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/kubewharf/godel-scheduler-api v0.0.0-20240910073424-8068ac118f44 // indirect
 	github.com/ray-project/kuberay/ray-operator v1.2.1 // indirect
 )

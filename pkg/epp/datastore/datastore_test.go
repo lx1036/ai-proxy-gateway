@@ -61,7 +61,7 @@ func TestDataStore(test *testing.T) {
 		Name:        "llm-d-inference-sim-inference-pool",
 	}
 
-	if err := datastore.ResyncPods(ctx, k8sClient, endpoints); err != nil {
+	if err := datastore.StartPodMetricsLoop(ctx, k8sClient, endpoints); err != nil {
 		klog.Fatalf("fail to resync infernece pods: %v", err)
 	}
 

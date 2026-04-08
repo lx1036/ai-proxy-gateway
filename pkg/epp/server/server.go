@@ -3,7 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
+
+	"github.com/lx1036/gateway/pkg/epp/datastore"
 	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
+	"github.com/lx1036/gateway/pkg/controllers/networking/inferencepool"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 	"net"
@@ -16,21 +19,24 @@ import (
 // 1. reconcile Pod/InferencePool
 // 2. start ext-proc server
 type ExtProcRunner struct {
+
+	Datastore *datastore.Datastore
+
 }
 
 // SetupWithManager reconcile Pod/InferencePool
 func (r *ExtProcRunner) SetupWithManager(mgr ctrl.Manager) error {
-	if err := (&controller.InferencePoolReconciler{
+	if err := (&inferencepool.InferencePoolReconciler{
 		Datastore: r.Datastore,
-		Reader:    mgr.GetClient(),
+		Client:    mgr.GetClient(),
 		PoolGKNN:  r.GKNN,
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("failed setting up InferencePoolReconciler - %w", err)
 	}
 
-	if err := (&controller.PodReconciler{
+	if err := (&inferencepool.PodReconciler{
 		Datastore: r.Datastore,
-		Reader:    mgr.GetClient(),
+		Client:    mgr.GetClient(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("failed setting up PodReconciler - %w", err)
 	}

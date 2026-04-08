@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/lx1036/gateway/pkg/epp/config"
 	"github.com/lx1036/gateway/pkg/epp/datalayer/backend/metrics"
+	"github.com/lx1036/gateway/pkg/epp/datastore"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -91,7 +93,9 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	scheduler := scheduling.NewSchedulerWithConfig(r.schedulerConfig)
 
-	serverRunner := &server.ExtProcRunner{}
+	serverRunner := &server.ExtProcRunner{
+
+	}
 	if err := serverRunner.SetupWithManager(mgr); err != nil {
 		klog.Errorf("Failed to setup EPP controllers: %v", err)
 		return err

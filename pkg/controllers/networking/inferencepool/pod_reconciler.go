@@ -15,10 +15,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
+const  (
+	// pod label: networking.lx1036.ai: inferencepool1
+	PoolLabelKey = "networking.lx1036.ai"
+)
+
+
 type PodReconciler struct {
 	client.Client
-	Datastore datastore.Datastore
+	Datastore *datastore.Datastore
 }
+
+
+
+
 
 func (c *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	/**
@@ -30,13 +40,25 @@ func (c *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			if pod, ok := object.(*corev1.Pod); ok {
-				return c.Datastore.PoolLabelsMatch(pod.GetLabels())
+			pod, ok := object.(*corev1.Pod)
+			if !ok {
+				return false
 			}
 
-			// TODO: StatefulSet
+			if pod.Labels == nil {
+				return false
+			}
 
-			return false
+			poolName, ok := pod.Labels[PoolLabelKey]
+			if !ok {
+				return false
+			}
+
+			if !c.Datastore.HasPool(poolName) {
+				return false
+			}
+
+			return c.Datastore.PoolLabelsMatch(poolName, pod.GetLabels())
 		})).
 		Complete(c)
 }

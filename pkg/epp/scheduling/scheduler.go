@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/lx1036/gateway/pkg/epp/scheduling/framework"
-	"github.com/lx1036/gateway/pkg/epp/scheduling/types"
 )
 
 type SchedulerConfig struct {
@@ -24,14 +23,15 @@ func NewSchedulerWithConfig(config *SchedulerConfig) *Scheduler {
 	}
 }
 
-func (s *Scheduler) Schedule(ctx context.Context, request *types.LLMRequest, candidatePods []types.Pod) (result *types.SchedulingResult, err error) {
+func (s *Scheduler) Schedule(ctx context.Context, request *framework.LLMRequest, candidatePods []framework.Pod) (result *framework.SchedulingResult, err error) {
 
-	profileRunResults := map[string]*types.ProfileRunResult{}
-	cycleState := types.NewCycleState()
+	profileRunResults := map[string]*framework.ProfileRunResult{}
+	cycleState := framework.NewCycleState()
 
 	// get the next set of profiles to run iteratively based on the request and the previous execution results
 	for {
-		profiles := s.profileHandler.Pick(ctx, cycleState, request, s.profiles, profileRunResults)
+		//profiles := s.profileHandler.Pick(ctx, cycleState, request, s.profiles, profileRunResults)
+		profiles := s.profiles
 
 		if len(profiles) == 0 { // profile picker didn't pick any profile to run
 			break

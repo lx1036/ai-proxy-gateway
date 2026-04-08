@@ -15,6 +15,7 @@ import (
 	"github.com/lx1036/gateway/pkg/epp/datalayer"
 	"github.com/lx1036/gateway/pkg/epp/datalayer/backend/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	v1 "sigs.k8s.io/gateway-api-inference-extension/api/v1"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -23,12 +24,14 @@ type Datastore struct {
 	mu sync.RWMutex
 
 	//pools map[string]*v1.InferencePool // 直接保存 v1.InferencePool 对象，占内存太大
-	pools map[string]*datalayer.EndpointPool // 直接保存 v1.InferencePool 对象，占内存太大
+	// [poolName]*datalayer.EndpointPool
+	pools sync.Map
+	//pools map[string]*datalayer.EndpointPool // 直接保存 v1.InferencePool 对象，占内存太大
 
 	parentCtx         context.Context
 	podMetricsFactory *metrics.PodMetricsFactory
 
-	pool *datalayer.EndpointPool
+	//pool *datalayer.EndpointPool
 
 	// key: types.NamespacedName, value: *backend/metrics.PodMetrics
 	pods *sync.Map
@@ -51,7 +54,21 @@ func NewDatastore(parentCtx context.Context, podMetricsFactory *metrics.PodMetri
 	return store
 }
 
-func (ds *Datastore) PodUpdateOrAddIfNotExist(pod *corev1.Pod) bool {
+func (store *Datastore) HasPool(poolName string) bool {
+	_, ok := store.pools.Load(poolName)
+	return ok
+}
+
+func (store *Datastore) PoolLabelsMatch(poolName string, label map[string]string) bool {
+	endpointPool, ok := store.pools.Load(poolName)
+	if !ok {
+		return false
+	}
+
+	return labels.SelectorFromSet(endpointPool.(*datalayer.EndpointPool).Selector).Matches(labels.Set(label))
+}
+
+func (store *Datastore) PodUpdateOrAddIfNotExist(pod *corev1.Pod) bool {
 	labels := make(map[string]string, len(pod.GetLabels()))
 	for key, value := range pod.GetLabels() {
 		labels[key] = value
@@ -59,7 +76,7 @@ func (ds *Datastore) PodUpdateOrAddIfNotExist(pod *corev1.Pod) bool {
 	// TargetPorts defines a list of ports that are exposed by this InferencePool.
 	// Every port will be treated as a distinctive endpoint by EPP,
 	var metadatas []*datalayer.EndpointMetadata
-	for idx, port := range ds.pool.TargetPorts {
+	for idx, port := range store.pool.TargetPorts {
 		metadatas = append(metadatas,
 			&datalayer.EndpointMetadata{
 				NamespacedName: types.NamespacedName{
@@ -76,11 +93,11 @@ func (ds *Datastore) PodUpdateOrAddIfNotExist(pod *corev1.Pod) bool {
 
 	existed := true
 	for _, metadata := range metadatas {
-		existing, ok := ds.pods.Load(metadata.NamespacedName)
+		existing, ok := store.pods.Load(metadata.NamespacedName)
 		if !ok {
 			// start gorouting loop to fetch pod metrics
-			podMetrics := ds.podMetricsFactory.NewEndpoint(ds.parentCtx, metadata)
-			ds.pods.Store(metadata.NamespacedName, podMetrics)
+			podMetrics := store.podMetricsFactory.NewEndpoint(store.parentCtx, metadata)
+			store.pods.Store(metadata.NamespacedName, podMetrics)
 			existed = false
 		} else {
 			podMetrics := existing.(*metrics.PodMetrics)
@@ -92,31 +109,33 @@ func (ds *Datastore) PodUpdateOrAddIfNotExist(pod *corev1.Pod) bool {
 }
 
 // PodDelete 1. delete from sync.Map 2. release gorouting loop(fetch pod metrics)
-func (ds *Datastore) PodDelete(podName string) {
-	ds.pods.Range(func(key, value any) bool {
+func (store *Datastore) PodDelete(podName string) {
+	store.pods.Range(func(key, value any) bool {
 		podMetrics := value.(*metrics.PodMetrics)
 		if podMetrics.GetMetadata().PodName == podName {
 			// delete from sync.Map
-			ds.pods.Delete(key)
+			store.pods.Delete(key)
 			// release gorouting loop(fetch pod metrics)
-			ds.podMetricsFactory.ReleaseEndpoint(podMetrics)
+			store.podMetricsFactory.ReleaseEndpoint(podMetrics)
 		}
 
 		return true
 	})
 }
 
-func (ds *Datastore) ResyncPods(ctx context.Context, c client.Client, endpointPool *datalayer.EndpointPool) error {
-	if endpointPool == nil {
-		ds.Clear()
-		return nil
+func (store *Datastore) StartPodMetricsLoop(ctx context.Context, c client.Client, pool *v1.InferencePool) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	latestEndpointPool := InferencePoolToEndpointPool(pool)
+	lastEndpointPool, ok := store.pools.Load(pool.Name)
+	if !ok {
+		store.pools.Store(pool.Name, latestEndpointPool)
+		// INFO: start pod metrics loop
 	}
 
-	ds.mu.Lock()
-	defer ds.mu.Unlock()
-
-	oldEndpointPool := ds.pool
-	ds.pool = endpointPool
+	oldEndpointPool := store.pool
+	store.pool = endpointPool
 
 	// 首次更新或者后期有更新
 	if oldEndpointPool == nil || !labels.Equals(oldEndpointPool.Selector, endpointPool.Selector) {
@@ -124,8 +143,8 @@ func (ds *Datastore) ResyncPods(ctx context.Context, c client.Client, endpointPo
 
 		podList := &corev1.PodList{}
 		if err := c.List(ctx, podList, &client.ListOptions{
-			LabelSelector: labels.SelectorFromSet(ds.pool.Selector),
-			Namespace:     ds.pool.Namespace,
+			LabelSelector: labels.SelectorFromSet(store.pool.Selector),
+			Namespace:     store.pool.Namespace,
 		}); err != nil {
 			return fmt.Errorf("failed to list pods: %v", err)
 		}
@@ -140,18 +159,18 @@ func (ds *Datastore) ResyncPods(ctx context.Context, c client.Client, endpointPo
 			namespacedName := types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}
 			activePods.Insert(pod.Name)
 			klog.Infof("start metrics loop cycle for pod %s", namespacedName.String())
-			if ds.PodUpdateOrAddIfNotExist(&pod) {
+			if store.PodUpdateOrAddIfNotExist(&pod) {
 				klog.Infof("pod %s is already existed", namespacedName.String())
 			} else {
 				klog.Infof("pod %s is new added", namespacedName.String())
 			}
 		}
 
-		ds.pods.Range(func(key, value any) bool {
+		store.pods.Range(func(key, value any) bool {
 			podMetrics := value.(*metrics.PodMetrics)
 			if !activePods.Has(podMetrics.GetMetadata().PodName) {
 				klog.Infof("pod %s is deleted from datastore, and released from endpoint metrics loop cycle", podMetrics.GetMetadata().NamespacedName.String())
-				ds.PodDelete(podMetrics.GetMetadata().PodName)
+				store.PodDelete(podMetrics.GetMetadata().PodName)
 			}
 
 			return true
@@ -161,18 +180,37 @@ func (ds *Datastore) ResyncPods(ctx context.Context, c client.Client, endpointPo
 	return nil
 }
 
-func (ds *Datastore) Clear() {
-	ds.mu.Lock()
-	defer ds.mu.Unlock()
+func (store *Datastore) Clear() {
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
-	ds.pool = nil
+	store.pool = nil
 
 	// stop all pods go routines before clearing the pods map.
-	ds.pods.Range(func(key, value any) bool {
+	store.pods.Range(func(key, value any) bool {
 		podMetrics := value.(*metrics.PodMetrics)
-		ds.PodDelete(podMetrics.GetMetadata().PodName)
+		store.PodDelete(podMetrics.GetMetadata().PodName)
 
 		return true
 	})
-	ds.pods.Clear()
+	store.pods.Clear()
+}
+
+func InferencePoolToEndpointPool(inferencePool *v1.InferencePool) *datalayer.EndpointPool {
+	selector := make(map[string]string, len(inferencePool.Spec.Selector.MatchLabels))
+	for k, v := range inferencePool.Spec.Selector.MatchLabels {
+		selector[string(k)] = string(v)
+	}
+
+	targetPorts := make([]int, 0, len(inferencePool.Spec.TargetPorts))
+	for _, p := range inferencePool.Spec.TargetPorts {
+		targetPorts = append(targetPorts, int(p.Number))
+	}
+
+	return &datalayer.EndpointPool{
+		Namespace:   inferencePool.Namespace,
+		Name:        inferencePool.Name,
+		Selector:    selector,
+		TargetPorts: targetPorts,
+	}
 }

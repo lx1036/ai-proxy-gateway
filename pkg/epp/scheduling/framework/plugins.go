@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/lx1036/gateway/pkg/epp/plugins"
-	"github.com/lx1036/gateway/pkg/epp/scheduling/types"
 )
 
 /**
@@ -15,21 +14,21 @@ https://github.com/kubernetes-sigs/gateway-api-inference-extension/blob/main/doc
 type ProfileHandler interface {
 	plugins.Plugin
 
-	Pick(ctx context.Context, cycleState *types.CycleState, request *types.LLMRequest, profiles map[string]*SchedulerProfile,
-		profileResults map[string]*types.ProfileRunResult) map[string]*SchedulerProfile
+	Pick(ctx context.Context, cycleState *CycleState, request *LLMRequest, profiles map[string]*SchedulerProfile,
+		profileResults map[string]*ProfileRunResult) map[string]*SchedulerProfile
 
-	ProcessResults(ctx context.Context, cycleState *types.CycleState, request *types.LLMRequest,
-		profileResults map[string]*types.ProfileRunResult) (*types.SchedulingResult, error)
+	ProcessResults(ctx context.Context, cycleState *CycleState, request *LLMRequest,
+		profileResults map[string]*ProfileRunResult) (*SchedulingResult, error)
 }
 
 type Filter interface {
 	plugins.Plugin
-	Filter(ctx context.Context, cycleState *types.CycleState, request *types.LLMRequest, pods []types.Pod) []types.Pod
+	Filter(ctx context.Context, cycleState *CycleState, request *LLMRequest, pods []Pod) []Pod
 }
 
 type Scorer interface {
 	plugins.Plugin
-	Score(ctx context.Context, cycleState *types.CycleState, request *types.LLMRequest, pods []types.Pod) map[types.Pod]float64
+	Score(ctx context.Context, cycleState *CycleState, request *LLMRequest, pods []Pod) map[Pod]float64
 }
 
 type WeightedScorer struct {
@@ -45,5 +44,5 @@ func (s *WeightedScorer) Weight() int {
 // Picker picks the final pod(s) to send the request to.
 type Picker interface {
 	plugins.Plugin
-	Pick(ctx context.Context, cycleState *types.CycleState, scoredPods []*types.ScoredPod) *types.ProfileRunResult
+	Pick(ctx context.Context, cycleState *CycleState, scoredPods []*ScoredPod) *ProfileRunResult
 }

@@ -17,7 +17,7 @@ import (
 
 type InferencePoolReconciler struct {
 	client.Client
-	Datastore datastore.Datastore
+	Datastore *datastore.Datastore
 	PoolGKNN  common.GKNN
 }
 
@@ -32,7 +32,7 @@ func (c *InferencePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := c.Get(ctx, req.NamespacedName, pool); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.Infof("InferencePool not found. Clearing the datastore")
-			c.Datastore.Clear()
+			c.Datastore.Clear(pool)
 			return ctrl.Result{}, nil
 		}
 
@@ -41,37 +41,14 @@ func (c *InferencePoolReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	if pool.DeletionTimestamp != nil {
 		klog.Infof("InferencePool is marked for deletion. Clearing the datastore")
-		c.Datastore.Clear()
+		c.Datastore.Clear(pool)
 		return ctrl.Result{}, nil
 	}
 
 	endpointPool := InferencePoolToEndpointPool(pool)
-	if err := c.Datastore.ResyncPods(ctx, c.Client, endpointPool); err != nil {
+	if err := c.Datastore.StartPodMetricsLoop(ctx, c.Client, pool); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update datastore - %w", err)
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func InferencePoolToEndpointPool(inferencePool *v1.InferencePool) *datalayer.EndpointPool {
-	if inferencePool == nil {
-		return nil
-	}
-
-	selector := make(map[string]string, len(inferencePool.Spec.Selector.MatchLabels))
-	for k, v := range inferencePool.Spec.Selector.MatchLabels {
-		selector[string(k)] = string(v)
-	}
-
-	targetPorts := make([]int, 0, len(inferencePool.Spec.TargetPorts))
-	for _, p := range inferencePool.Spec.TargetPorts {
-		targetPorts = append(targetPorts, int(p.Number))
-	}
-
-	return &datalayer.EndpointPool{
-		Name:        inferencePool.Name,
-		Namespace:   inferencePool.Namespace,
-		Selector:    selector,
-		TargetPorts: targetPorts,
-	}
 }

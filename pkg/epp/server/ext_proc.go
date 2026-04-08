@@ -1,8 +1,8 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
+	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io"
@@ -11,10 +11,6 @@ import (
 
 	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 )
-
-type Director interface {
-	HandleRequest(ctx context.Context, reqCtx *RequestContext) (*RequestContext, error)
-}
 
 type Request struct {
 	Headers  map[string]string
@@ -41,6 +37,8 @@ const (
 
 // RequestContext stores context information during the life time of an HTTP request.
 type RequestContext struct {
+	modelName string
+
 	Request                   *Request
 	RequestState              StreamRequestState
 	RequestReceivedTimestamp  time.Time
@@ -54,12 +52,12 @@ type RequestContext struct {
 type ExtProcServer struct {
 	extProcPb.UnimplementedExternalProcessorServer
 
-	director Director
+	router *router.Router
 }
 
 func NewExtProcServer(datastore Datastore, director Director) *ExtProcServer {
 	return &ExtProcServer{
-		director:  director,
+		router:    director,
 		datastore: datastore,
 	}
 }
@@ -102,6 +100,12 @@ func (s *ExtProcServer) Process(srv extProcPb.ExternalProcessor_ProcessServer) e
 
 		switch v := req.Request.(type) {
 		case *extProcPb.ProcessingRequest_RequestHeaders:
+			requestID := ExtractHeadersValue(v, RequestIdHeaderKey)
+			if len(requestID) == 0 {
+				requestID = uuid.NewString()
+				klog.Infof("RequestID header is not found in the request, generated a request id")
+				reqCtx.Request.Headers[RequestIdHeaderKey] = requestID
+			}
 
 			err = s.HandleRequestHeaders(reqCtx, v)
 
@@ -111,7 +115,7 @@ func (s *ExtProcServer) Process(srv extProcPb.ExternalProcessor_ProcessServer) e
 			// In the stream case, we can receive multiple request bodies.
 			body = append(body, v.RequestBody.Body...)
 
-			// INFO: 考虑了 stream 的情况，会收到多个 body chunk
+			// INFO: 考虑了 stream 的情况，会收到多个 body chunk。不过 aibrix 里也没有去考虑，直接用 v.RequestBody.Body
 			// Message is buffered, we can read and decode.
 			if v.RequestBody.EndOfStream {
 				klog.Infof("decoding request body...")
@@ -125,7 +129,7 @@ func (s *ExtProcServer) Process(srv extProcPb.ExternalProcessor_ProcessServer) e
 				// Body stream complete. Allocate empty slice for response to use.
 				body = []byte{}
 
-				reqCtx, err = s.director.HandleRequest(ctx, reqCtx)
+				reqCtx, err = s.router.HandleRequest(ctx, reqCtx)
 				if err != nil {
 					logger.V(logutil.DEFAULT).Error(err, "Error handling request")
 					break
@@ -134,7 +138,7 @@ func (s *ExtProcServer) Process(srv extProcPb.ExternalProcessor_ProcessServer) e
 				// Populate the ExtProc protocol responses for the request body.
 				requestBodyBytes, err := json.Marshal(reqCtx.Request.Body)
 				if err != nil {
-					logger.V(logutil.DEFAULT).Error(err, "Error marshalling request body")
+					klog.Errorf("cannot marshal request body error: %v", err)
 					break
 				}
 				reqCtx.RequestSize = len(requestBodyBytes)
@@ -142,6 +146,8 @@ func (s *ExtProcServer) Process(srv extProcPb.ExternalProcessor_ProcessServer) e
 				reqCtx.reqBodyResp = s.generateRequestBodyResponses(requestBodyBytes)
 
 			}
+
+		case *extProcPb.ProcessingRequest_RequestTrailers:
 
 		case *extProcPb.ProcessingRequest_ResponseHeaders:
 
@@ -154,6 +160,12 @@ func (s *ExtProcServer) Process(srv extProcPb.ExternalProcessor_ProcessServer) e
 
 			}
 
+		case *extProcPb.ProcessingRequest_ResponseTrailers:
+
+		}
+
+		if err != nil {
+			err := s.generateErrorResponse(reqCtx, err)
 		}
 
 		if err := srv.Send(resp); err != nil {

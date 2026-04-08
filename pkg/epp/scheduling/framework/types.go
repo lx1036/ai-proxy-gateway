@@ -1,10 +1,25 @@
-package types
+package framework
 
 import (
-	"sync"
-
+	"github.com/lx1036/gateway/pkg/epp/datalayer"
+	"github.com/lx1036/gateway/pkg/epp/datalayer/backend"
 	"github.com/lx1036/gateway/pkg/epp/plugins"
+	"sync"
 )
+
+type Pod interface {
+	GetPod() *backend.Pod
+	GetMetrics() *datalayer.Metrics
+	String() string
+	//Get(string) (datalayer.Cloneable, bool)
+	//Put(string, datalayer.Cloneable)
+	Keys() []string
+}
+
+type ProfileRunResult struct {
+	TargetPods []Pod
+}
+
 
 type CycleState struct {
 	// key: StateKey, value: StateData
