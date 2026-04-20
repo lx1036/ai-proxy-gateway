@@ -1,0 +1,276 @@
+
+# OK!!!
+# 1P1D
+
+
+apiVersion: orchestration.aibrix.ai/v1alpha1
+kind: StormService
+metadata:
+  name: vllm-1p1d-nixl
+  namespace: envoy-gateway-system
+  labels:
+    helm.sh/chart: aibrix-regression-test-0.5.0
+    app.kubernetes.io/name: aibrix-regression-test
+    app.kubernetes.io/instance: vllm-1p1d-nixl
+    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/managed-by: Helm
+    engine: "vllm"
+    deployment: "disaggregated"
+    model.aibrix.ai/name: qwen
+    model.aibrix.ai/port: "8000"
+    model.aibrix.ai/engine: vllm
+spec:
+  replicas: 1
+  updateStrategy:
+    type: InPlaceUpdate
+  stateful: true
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aibrix-regression-test
+      app.kubernetes.io/instance: vllm-1p1d-nixl
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aibrix-regression-test
+        app.kubernetes.io/instance: vllm-1p1d-nixl
+    spec:
+      roles:
+        - name: prefill
+          replicas: 1
+          stateful: true
+          template:
+            metadata:
+              annotations:
+                k8s.volcengine.com/pod-networks: |
+                  [
+                    {
+                      "cniConf":{
+                          "name":"rdma"
+                      }
+                    }
+                  ]
+              labels:
+                model.aibrix.ai/name: qwen
+                model.aibrix.ai/port: "8000"
+                model.aibrix.ai/engine: vllm
+            spec:
+              imagePullSecrets:
+                - name: docker-login
+              containers:
+                - name: prefill
+                  image: vllm/vllm-openai:v0.11.0-amd64
+                  command: ["sh", "-c"]
+                  args:
+                    - |
+                      python3 -m vllm.entrypoints.openai.api_server \
+                        --host "0.0.0.0" \
+                        --port "8000" \
+                        --uvicorn-log-level warning \
+                        --model /data01/Qwen1.5-1.8B-Chat \
+                        --served-model-name qwen \
+                        --disable-fastapi-docs \
+                        --trust-remote-code \
+                        --swap-space "0" \
+                        --no-enable-chunked-prefill \
+                        --no-enable-prefix-caching \
+                        --kv-transfer-config '{"kv_connector":"NixlConnector","kv_role":"kv_producer", "kv_buffer_device":"cuda", "kv_connector_extra_config":{"backends":["UCX", "GDS"]}}' \
+                        --tensor-parallel-size=1
+                  env:
+                    - name: UCX_TLS
+                      value: "^gga"
+                    - name: GLOO_SOCKET_IFNAME
+                      value: "eth0"
+                    - name: NCCL_SOCKET_IFNAME
+                      value: "eth0"
+                    - name: NCCL_IB_DISABLE
+                      value: "0"
+                    - name: NCCL_IB_GID_INDEX
+                      value: "7"
+                    - name: NCCL_DEBUG
+                      value: "INFO"
+                    - name: PYTHONHASHSEED
+                      value: "1047"
+                    - name: VLLM_NIXL_ABORT_REQUEST_TIMEOUT
+                      value: "600"
+                    - name: VLLM_NIXL_SIDE_CHANNEL_PORT
+                      value: "5557"
+                    - name: VLLM_NIXL_SIDE_CHANNEL_HOST
+                      valueFrom:
+                        fieldRef:
+                          fieldPath: status.podIP
+#                      value: "0.0.0.0"
+                    - name: VLLM_SERVER_DEV_MODE
+                      value: "1"
+                    - name: VLLM_USE_V1
+                      value: "1"
+                    - name: VLLM_ENABLE_V1_MULTIPROCESSING
+                      value: "1"
+                    - name: VLLM_WORKER_MULTIPROC_METHOD
+                      value: "spawn"
+                    - name: UCX_LOG_LEVEL
+                      value: info
+                    - name: NIXL_LOG_LEVEL
+                      value: info
+                    - name: VLLM_LOGGING_LEVEL
+                      value: info
+                    - name: AIBRIX_KV_CACHE_OL_L1_CACHE_ENABLED
+                      value: "0"
+                    - name: AIBRIX_KV_CACHE_OL_L2_CACHE_BACKEND
+                      value: "SHFS"
+                    - name: AIBRIX_KV_CACHE_OL_SHFS_ROOT
+                      value: "/kvcache"
+                    - name: AIBRIX_KV_CACHE_OL_L2_CACHE_NAMESPACE
+                      value: "aibrix"
+                    - name: AIBRIX_KV_CACHE_OL_L2_CACHE_OP_BATCH
+                      value: "32"
+                    - name: AIBRIX_KV_CACHE_OL_L2_CACHE_NUM_ASYNC_WORKERS
+                      value: "8"
+                    - name: AIBRIX_KV_CACHE_OL_TOKEN_VALIDATION_ENABLED
+                      value: "0"
+                  volumeMounts:
+                    - name: model-vol
+                      mountPath: /data01/Qwen1.5-1.8B-Chat
+                      readOnly: true
+                    - mountPath: /dev/shm
+                      name: shared-mem
+                    - name: kvcache
+                      mountPath: /kvcache
+                  resources:
+                    limits:
+                      nvidia.com/gpu: 1
+#                      vke.volcengine.com/rdma: "1"
+                  securityContext:
+                    capabilities:
+                      add:
+                        - IPC_LOCK
+              volumes:
+                - name: model-vol
+                  hostPath:
+                    path: /data01/Qwen1.5-1.8B-Chat
+                    type: Directory
+                - emptyDir:
+                    medium: Memory
+                  name: shared-mem
+                - name: kvcache
+                  hostPath:
+                    path: /data01/kvcache
+                    type: DirectoryOrCreate
+        - name: decode
+          replicas: 1
+          stateful: true
+          template:
+            metadata:
+              annotations:
+                k8s.volcengine.com/pod-networks: |
+                  [
+                    {
+                      "cniConf":{
+                          "name":"rdma"
+                      }
+                    }
+                  ]
+              labels:
+                model.aibrix.ai/name: qwen
+                model.aibrix.ai/port: "8000"
+                model.aibrix.ai/engine: vllm
+            spec:
+              imagePullSecrets:
+                - name: docker-login
+              containers:
+                - name: decode
+                  image: vllm/vllm-openai:v0.11.0-amd64
+                  command: ["sh", "-c"]
+                  args:
+                    - |
+                      python3 -m vllm.entrypoints.openai.api_server \
+                        --host "0.0.0.0" \
+                        --port "8000" \
+                        --uvicorn-log-level warning \
+                        --model /data01/Qwen1.5-1.8B-Chat \
+                        --served-model-name qwen \
+                        --disable-fastapi-docs \
+                        --trust-remote-code \
+                        --swap-space "0" \
+                        --no-enable-chunked-prefill \
+                        --no-enable-prefix-caching \
+                        --kv-transfer-config '{"kv_connector":"NixlConnector","kv_role":"kv_consumer", "kv_buffer_device":"cuda", "kv_connector_extra_config":{"backends":["UCX", "GDS"]}}' \
+                        --tensor-parallel-size=1
+                  env:
+                    - name: UCX_TLS
+                      value: "^gga"
+                    - name: GLOO_SOCKET_IFNAME
+                      value: "eth0"
+                    - name: NCCL_SOCKET_IFNAME
+                      value: "eth0"
+                    - name: NCCL_IB_DISABLE
+                      value: "0"
+                    - name: NCCL_IB_GID_INDEX
+                      value: "7"
+                    - name: NCCL_DEBUG
+                      value: "INFO"
+                    - name: PYTHONHASHSEED
+                      value: "1047"
+                    - name: VLLM_NIXL_ABORT_REQUEST_TIMEOUT
+                      value: "600"
+                    - name: VLLM_NIXL_SIDE_CHANNEL_PORT
+                      value: "5558"
+                    - name: VLLM_NIXL_SIDE_CHANNEL_HOST
+                      valueFrom:
+                        fieldRef:
+                          fieldPath: status.podIP # 必须是 podIP
+                    - name: VLLM_SERVER_DEV_MODE
+                      value: "1"
+                    - name: VLLM_USE_V1
+                      value: "1"
+                    - name: VLLM_ENABLE_V1_MULTIPROCESSING
+                      value: "1"
+                    - name: VLLM_WORKER_MULTIPROC_METHOD
+                      value: "spawn"
+                    - name: UCX_LOG_LEVEL
+                      value: info
+                    - name: NIXL_LOG_LEVEL
+                      value: info
+                    - name: VLLM_LOGGING_LEVEL
+                      value: info
+                    - name: AIBRIX_KV_CACHE_OL_L1_CACHE_ENABLED
+                      value: "0"
+                    - name: AIBRIX_KV_CACHE_OL_L2_CACHE_BACKEND
+                      value: "SHFS"
+                    - name: AIBRIX_KV_CACHE_OL_SHFS_ROOT
+                      value: "/kvcache"
+                    - name: AIBRIX_KV_CACHE_OL_L2_CACHE_NAMESPACE
+                      value: "aibrix"
+                    - name: AIBRIX_KV_CACHE_OL_L2_CACHE_OP_BATCH
+                      value: "32"
+                    - name: AIBRIX_KV_CACHE_OL_L2_CACHE_NUM_ASYNC_WORKERS
+                      value: "8"
+                    - name: AIBRIX_KV_CACHE_OL_TOKEN_VALIDATION_ENABLED
+                      value: "0"
+                  volumeMounts:
+                    - name: model-vol
+                      mountPath: /data01/Qwen1.5-1.8B-Chat
+                      readOnly: true
+                    - mountPath: /dev/shm
+                      name: shared-mem
+                    - name: kvcache
+                      mountPath: /kvcache
+                  resources:
+                    limits:
+                      nvidia.com/gpu: 1
+#                      vke.volcengine.com/rdma: "1"
+                  securityContext:
+                    capabilities:
+                      add:
+                        - IPC_LOCK
+              volumes:
+                - name: model-vol
+                  hostPath:
+                    path: /data01/Qwen1.5-1.8B-Chat
+                    type: Directory
+                - emptyDir:
+                    medium: Memory
+                  name: shared-mem
+                - name: kvcache
+                  hostPath:
+                    path: /data01/kvcache
+                    type: DirectoryOrCreate
