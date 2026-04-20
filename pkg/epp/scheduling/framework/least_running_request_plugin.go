@@ -27,6 +27,9 @@ func (plugin *RequestRunningQueuePlugin) Score(pods []Pod) map[Pod]float64 {
 		}
 
 		// INFO: RunningRequestsSize 最小，分数最高
+
+		a := float64(maxQueueSize-pod.GetMetrics().RunningRequestsSize) / float64(maxQueueSize)
+
 		scores[pod] = float64(maxQueueSize-pod.GetMetrics().RunningRequestsSize) / float64(maxQueueSize-minQueueSize)
 	}
 

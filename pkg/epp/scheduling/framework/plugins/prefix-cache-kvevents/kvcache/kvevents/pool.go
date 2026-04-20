@@ -2,6 +2,7 @@ package kvevents
 
 import (
 	"context"
+	"github.com/lx1036/gateway/pkg/epp/scheduling/framework/plugins/prefix-cache-kvevents/kvcache/kvblock"
 	"k8s.io/klog/v2"
 	"strings"
 	"sync"
@@ -77,6 +78,8 @@ type Pool struct {
 	concurrency int // can replace use with len(queues)
 
 	adapter EngineAdapter
+
+	tokenProcessor *kvblock.ChunkedTokenDatabase
 }
 
 func NewPool(cfg *Config, adapter EngineAdapter) *Pool {
@@ -225,11 +228,11 @@ func (pool *Pool) processEventBatch(ctx context.Context, batch *EventBatch, podI
 
 			// Use LoRA name as model identifier if available, otherwise fall back to base model name.
 			effectiveModelName := modelName
-			if ev.LoraName != nil && *ev.LoraName != "" {
-				effectiveModelName = *ev.LoraName
+			if event.LoraName != nil && *event.LoraName != "" {
+				effectiveModelName = *event.LoraName
 			}
 
-			requestKeys, err := p.tokenProcessor.TokensToKVBlockKeys(parentRequestKey, ev.Tokens, effectiveModelName, extraFeatures)
+			blockHashes, err := pool.tokenProcessor.TokensToKVBlockKeys(parentRequestKey, event.Tokens, effectiveModelName, extraFeatures)
 			if err != nil {
 				klog.Errorf("failed to convert tokens to block keys: %v", err)
 				continue
@@ -237,7 +240,7 @@ func (pool *Pool) processEventBatch(ctx context.Context, batch *EventBatch, podI
 
 			// Only proceed if we have valid keys to add.
 			if len(engineKeys) > 0 {
-				if err := p.index.Add(ctx, engineKeys, requestKeys, podEntries); err != nil {
+				if err := pool.index.Add(ctx, engineKeys, blockHashes, podEntries); err != nil {
 
 				}
 
