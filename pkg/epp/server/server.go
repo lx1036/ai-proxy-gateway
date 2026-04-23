@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/lx1036/gateway/pkg/epp/datastore"
 	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/lx1036/gateway/pkg/controllers/networking/inferencepool"
+	"github.com/lx1036/gateway/pkg/epp/datastore"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 	"net"
@@ -69,7 +70,7 @@ func (r *ExtProcRunner) AsRunnable() manager.Runnable {
 		}()
 
 		// Keep serving until terminated.
-		if err := grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+		if err := grpcServer.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			return fmt.Errorf("gRPC server failed - %w", err)
 		}
 		klog.Info("gRPC server terminated")
