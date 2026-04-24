@@ -8,7 +8,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 	leaderworkersetv1 "sigs.k8s.io/lws/api/leaderworkerset/v1"
 	"testing"
 )
@@ -51,10 +51,10 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(leaderworkersetv1.AddToScheme(scheme))
-	utilruntime.Must(gwapiv1.Install(scheme))
+	utilruntime.Must(gatewayapiv1.Install(scheme))
 }
 
-func TestName(test *testing.T) {
+func TestIndexer(test *testing.T) {
 	cfg := ctrl.GetConfigOrDie()
 	// informer watch 并从本地 indexer cache 中获取
 	mgr, _ := ctrl.NewManager(cfg, ctrl.Options{
@@ -63,7 +63,7 @@ func TestName(test *testing.T) {
 
 	ctx := ctrl.SetupSignalHandler()
 
-	if err := mgr.GetFieldIndexer().IndexField(ctx, &gwapiv1.Gateway{}, classGatewayIndex, gatewayIndexFunc); err != nil {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &gatewayapiv1.Gateway{}, classGatewayIndex, gatewayIndexFunc); err != nil {
 		klog.Errorf("failed to create index: %v", err)
 		return
 	}
@@ -81,7 +81,7 @@ func TestName(test *testing.T) {
 	// INFO: 加上 field selector
 
 	gatewayClassName := "envoygateway-liuxiang1"
-	gatewayList := &gwapiv1.GatewayList{}
+	gatewayList := &gatewayapiv1.GatewayList{}
 	if err := mgr.GetClient().List(ctx, gatewayList, &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(classGatewayIndex, gatewayClassName),
 	}); err != nil {
@@ -98,6 +98,6 @@ func TestName(test *testing.T) {
 }
 
 func gatewayIndexFunc(rawObj client.Object) []string {
-	gateway := rawObj.(*gwapiv1.Gateway)
+	gateway := rawObj.(*gatewayapiv1.Gateway)
 	return []string{string(gateway.Spec.GatewayClassName)} // INFO: gateway.Spec.GatewayClassName 要等于 managedGC.Name, @see gatewayAPIReconciler.processGateways()
 }

@@ -68,7 +68,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/logr v1.4.3
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.22.4 // indirect
 	github.com/go-openapi/jsonreference v0.21.4 // indirect
@@ -179,6 +179,7 @@ require (
 	github.com/envoyproxy/go-control-plane v0.14.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-zeromq/zmq4 v0.17.0
+	github.com/telepresenceio/watchable v0.0.0-20220726211108-9bb86f92afa7
 	github.com/vllm-project/aibrix v0.6.0
 	sigs.k8s.io/controller-runtime v0.23.1
 	sigs.k8s.io/jobset v0.11.1
@@ -191,6 +192,7 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
