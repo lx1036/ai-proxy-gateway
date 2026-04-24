@@ -75,12 +75,16 @@ func NewGatewayAPIReconciler(ctx context.Context, mgr manager.Manager, resources
 }
 
 func (gatewayAPIReconciler *GatewayAPIReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	/**
+	INFO: 0. 构建 gateway-api 全局资源视图，每一个资源的更新（包括任意子资源），都会触发构建全局资源视图。
+	*/
+
 	// INFO: 1. 聚合所有 gateway-api resources. 一个 Reconcile update 多个 resources.
 	gatewayClasses, err := gatewayAPIReconciler.ListGatewayClass(ctx)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("list gatewayclass error: %w", err)
 	}
-	klog.Infof("list gateway class %d", len(gatewayClasses))
+	//klog.Infof("list gateway class %d", len(gatewayClasses))
 	if len(gatewayClasses) == 0 {
 		klog.Infof("no accepted gatewayclass")
 		return reconcile.Result{}, nil
@@ -92,14 +96,17 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) Reconcile(ctx context.Context,
 		resources.GatewayClass = gatewayClass
 
 		gatewayClassResources = append(gatewayClassResources, resources)
+
+		err = gatewayAPIReconciler.processGateways(ctx, gatewayClass, resources)
+
 	}
 
 	// sort before store 为了：1. 避免重复的 resources 被 watchable layer 去更新 envoy xds 2. gateway-api layer 确保 resources 资源顺序
 	//gatewayClassResources.Sort()
 
 	// INFO: 2. Publish GatewayAPIResources
-	klog.Infof("list gatewayClassResources %d", len(gatewayClassResources))
-	gatewayAPIReconciler.resources.GatewayAPIResources.Store(string(gatewayAPIReconciler.classController), gatewayClassResources)
+	//klog.Infof("list gatewayClassResources %d", len(gatewayClassResources))
+	gatewayAPIReconciler.resources.GatewayAPIResources.Store(string(gatewayAPIReconciler.classController), &gatewayClassResources)
 
 	klog.Infof("gateway-api reconcile end successfully...")
 	return reconcile.Result{}, nil
@@ -223,7 +230,10 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) WatchResources(ctx context.Con
 	if err != nil {
 		return fmt.Errorf("failed to watch %s: %v", KindHTTPRoute, err)
 	}
-	// TODO: add HTTPRoute Indexer
+	err = addHTTPRouteIndexers(ctx, mgr)
+	if err != nil {
+		return fmt.Errorf("failed to add Indexer for %s: %v", KindHTTPRoute, err)
+	}
 
 	// INFO: 5. Watch Custom GVK CR
 	for _, gvk := range gatewayAPIReconciler.extBackendGVKs {

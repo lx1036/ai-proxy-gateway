@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"github.com/lx1036/gateway/pkg/envoygateway/gatewayapi/resource"
 	"github.com/lx1036/gateway/pkg/envoygateway/message"
 	"github.com/telepresenceio/watchable"
 	"k8s.io/klog/v2"
@@ -14,22 +15,37 @@ func TestKubernetesProvider(test *testing.T) {
 
 	providerResources := new(message.ProviderResources)
 
-	snapshot := providerResources.GatewayAPIResources.Subscribe(ctx)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case s := <-snapshot:
-				for key, value := range s.State {
-					klog.Infof("key: %+v, value: %+v", key, value)
-				}
-				for _, update := range s.Updates {
-					klog.Infof("[updates] key: %+v, value: %+v", update.Key, update.Value)
-				}
+	sub := providerResources.GatewayAPIResources.Subscribe(ctx)
+	//go func() {
+	//	for {
+	//		select {
+	//		case <-ctx.Done():
+	//			return
+	//		case s := <-sub:
+	//			for key, value := range s.State {
+	//				klog.Infof("key: %+v, value: %+v", key, value)
+	//			}
+	//			for _, update := range s.Updates {
+	//				klog.Infof("[updates] key: %+v, value: %+v", update.Key, update.Value)
+	//			}
+	//		}
+	//	}
+	//}()
+
+	go message.HandleSubscription(sub, func(update watchable.Update[string, *resource.ControllerResources]) {
+		klog.Infof("watch update: %+v", update)
+		// watch update: {Key:gateway.envoyproxy.io/gatewayclass-controller Delete:false Value:0x14000426738}
+		resources := *update.Value
+		for _, res := range resources {
+			klog.Infof("gatewayclass: %v", res.GatewayClass.Name)
+			for _, gateway := range res.Gateways {
+				klog.Infof("gateway: %s/%s", gateway.Namespace, gateway.Name)
+			}
+			for _, httpRoute := range res.HTTPRoutes {
+				klog.Infof("httproute: %s/%s", httpRoute.Namespace, httpRoute.Name)
 			}
 		}
-	}()
+	})
 
 	provider, err := NewProvider(ctx, providerResources)
 	if err != nil {

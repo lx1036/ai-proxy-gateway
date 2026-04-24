@@ -8,5 +8,5 @@ import (
 
 // ProviderResources INFO: 用于各个模块代码的 消息订阅模式
 type ProviderResources struct {
-	GatewayAPIResources watchable.Map[string, resource.ControllerResources]
+	GatewayAPIResources watchable.Map[string, *resource.ControllerResources]
 }
