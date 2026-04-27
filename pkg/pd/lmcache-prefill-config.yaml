@@ -1,0 +1,13 @@
+
+
+
+local_cpu: True
+max_local_cpu_size: 5           # 本地 CPU buffer，单位 GB
+max_local_disk_size: 0
+remote_url: "lm://localhost:8500"  # LMCache Server 地址
+remote_serde: naive
+
+
+#local_cpu: True - 开启本地 CPU buffer。不是可选的，LMCache 要求 Remote backend 必须配 Local CPU backend 作为中转（否则启动会报 Remote backend requires local CPU backend as a buffer）
+#remote_url - 指向 LMCache Server，这才是真正的共享池
+#remote_serde: naive - 传输用裸字节，不压缩，速度最快
