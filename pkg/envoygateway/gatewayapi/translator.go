@@ -10,6 +10,9 @@ import (
 	"maps"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sync"
+
+	envoygatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
+
 )
 
 const (
@@ -78,7 +81,13 @@ func (translator *Translator) Translate(res *resource.Resources) *TranslateResul
 	allGateways = append(allGateways, acceptedGateways...)
 	allGateways = append(allGateways, failedGateways...)
 
-	return NewTranslateResult(allGateways, httpRoutes, xdsIR, infraIR)
+
+	// Process EnvoyExtensionPolicies
+	envoyExtensionPolicies := translator.ProcessEnvoyExtensionPolicies()
+
+
+
+	return NewTranslateResult(allGateways, httpRoutes, envoyExtensionPolicies, xdsIR, infraIR)
 }
 
 func (translator *Translator) InitIRs(acceptedGateways, failedGateways []*GatewayContext) (map[string]*ir.Xds, map[string]*ir.Infra) {
@@ -141,6 +150,7 @@ type TranslateResult struct {
 func NewTranslateResult(
 	gateways []*GatewayContext,
 	httpRoutes []*HTTPRouteContext,
+	envoyExtensionPolicies []*envoygatewayv1alpha1.EnvoyExtensionPolicy,
 	xdsIR map[string]*ir.Xds,
 	infraIR map[string]*ir.Infra,
 ) *TranslateResult {
@@ -161,6 +171,10 @@ func NewTranslateResult(
 		for i, httpRoute := range httpRoutes {
 			translateResult.HTTPRoutes[i] = httpRoute.HTTPRoute
 		}
+	}
+
+	if len(envoyExtensionPolicies) > 0 {
+		translateResult.EnvoyExtensionPolicies = envoyExtensionPolicies
 	}
 
 	return translateResult

@@ -9,14 +9,16 @@ import (
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
 	runtimev3 "github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3"
 	secretv3 "github.com/envoyproxy/go-control-plane/envoy/service/secret/v3"
-	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/lx1036/gateway/pkg/envoygateway/ir"
 	"github.com/lx1036/gateway/pkg/envoygateway/message"
+	"github.com/lx1036/gateway/pkg/envoygateway/xds/cache"
 	"github.com/lx1036/gateway/pkg/envoygateway/xds/translator"
 	"github.com/telepresenceio/watchable"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"k8s.io/klog/v2"
 	"net"
+	"time"
 
 	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 )
@@ -24,7 +26,7 @@ import (
 type XdsServer struct {
 	grpcServer *grpc.Server
 
-	cache cachev3.Cache
+	cache cache.SnapshotCacheWithCallbacks
 
 	XdsIR             *message.XdsIR
 
@@ -33,11 +35,17 @@ type XdsServer struct {
 func NewXdsServer(ctx context.Context, xdsIR *message.XdsIR) *XdsServer {
 
 	xdsServer := &XdsServer{
-		cache: cachev3.NewSnapshotCache(true, cachev3.IDHash{}, nil),
+		cache: cache.NewSnapshotCache(true),
 		XdsIR:          xdsIR,
 	}
 
-	grpcOpts := []grpc.ServerOption{}
+	grpcOpts := []grpc.ServerOption{
+		grpc.MaxConcurrentStreams(1000),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    30 * time.Second,
+			Timeout: 5 * time.Second,
+		}),
+	}
 	grpcServer := grpc.NewServer(grpcOpts...)
 
 	srv := serverv3.NewServer(ctx, xdsServer.cache, nil)
@@ -68,6 +76,10 @@ func (xdsServer *XdsServer) Start(ctx context.Context) error {
 
 		if update.Delete { // Delete
 
+			if err := xdsServer.cache.SetSnapshotCache(ctx, key, nil); err != nil {
+				klog.Errorf("cache SetSnapshotCache error: %v", err)
+				return
+			}
 
 
 
@@ -76,9 +88,17 @@ func (xdsServer *XdsServer) Start(ctx context.Context) error {
 
 			t := translator.Translator{}
 			result, err := t.Translate(xdsIR)
+			if err != nil {
+				klog.Errorf("translator Translate error: %v", err)
+				return
+			}
 
 			if result.XdsResources != nil {
 
+				if err := xdsServer.cache.SetSnapshotCache(ctx, key, result.XdsResources); err != nil {
+					klog.Errorf("cache SetSnapshotCache error: %v", err)
+					return
+				}
 			}
 
 		}

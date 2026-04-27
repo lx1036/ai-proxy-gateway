@@ -2,6 +2,8 @@ package resource
 
 import (
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
+	envoygatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
+
 )
 
 type ControllerResources []*Resources
@@ -25,6 +27,9 @@ type Resources struct {
 	GatewayClass *gatewayapiv1.GatewayClass `json:"gatewayClass,omitempty" yaml:"gatewayClass,omitempty"`
 	Gateways     []*gatewayapiv1.Gateway    `json:"gateways,omitempty" yaml:"gateways,omitempty"`
 	HTTPRoutes   []*gatewayapiv1.HTTPRoute  `json:"httpRoutes,omitempty" yaml:"httpRoutes,omitempty"`
+
+	EnvoyExtensionPolicies  []*envoygatewayv1alpha1.EnvoyExtensionPolicy `json:"envoyExtensionPolicies,omitempty" yaml:"envoyExtensionPolicies,omitempty"`
+
 }
 
 func NewResources() *Resources {

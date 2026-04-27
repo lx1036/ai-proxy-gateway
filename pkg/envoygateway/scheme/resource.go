@@ -1,7 +1,13 @@
 package scheme
 
 
+const (
+	KindGatewayClass = "GatewayClass"
+	KindGateway = "Gateway"
+	KindHTTPRoute = "HTTPRoute"
 
+	KindEnvoyProxy = "EnvoyProxy"
+)
 
 
 // EnvoyAppLabel returns the labels used for all Envoy resources.

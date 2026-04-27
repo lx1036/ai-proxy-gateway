@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"github.com/lx1036/gateway/pkg/envoygateway/scheme"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -19,7 +20,7 @@ func addHTTPRouteIndexers(ctx context.Context, mgr manager.Manager) error {
 		var gateways []string
 		httpRoute := rawObj.(*gatewayapiv1.HTTPRoute)
 		for _, parentRefs := range httpRoute.Spec.ParentRefs {
-			if parentRefs.Kind == nil || string(*parentRefs.Kind) == KindGateway {
+			if parentRefs.Kind == nil || string(*parentRefs.Kind) == scheme.KindGateway {
 				namespace := httpRoute.Namespace
 				if parentRefs.Namespace != nil {
 					namespace = string(*parentRefs.Namespace)

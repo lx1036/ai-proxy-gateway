@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/lx1036/gateway/pkg/envoygateway/gatewayapi/resource"
 	"github.com/lx1036/gateway/pkg/envoygateway/message"
+	"github.com/lx1036/gateway/pkg/envoygateway/scheme"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -114,7 +115,7 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) Reconcile(ctx context.Context,
 
 func (gatewayAPIReconciler *GatewayAPIReconciler) WatchResources(ctx context.Context, mgr manager.Manager, c controller.Controller) error {
 	// INFO: 1. Watch GatewayClass CR 必须安装
-	if ok, err := gatewayAPIReconciler.CheckCRDExists(KindGatewayClass, gatewayapiv1.GroupVersion.String()); err != nil || !ok {
+	if ok, err := gatewayAPIReconciler.CheckCRDExists(scheme.KindGatewayClass, gatewayapiv1.GroupVersion.String()); err != nil || !ok {
 		klog.Fatalf("failed to check gatewayclass crd error: %v", err)
 	}
 	err := c.Watch(source.Kind(
@@ -136,11 +137,11 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) WatchResources(ctx context.Con
 		}),
 	))
 	if err != nil {
-		return fmt.Errorf("failed to watch %s: %v", KindGatewayClass, err)
+		return fmt.Errorf("failed to watch %s: %v", scheme.KindGatewayClass, err)
 	}
 
 	// INFO: 2. Watch EnvoyProxy CR 可选
-	ok, err := gatewayAPIReconciler.CheckCRDExists(KindEnvoyProxy, envoygatewayv1alpha1.GroupVersion.String())
+	ok, err := gatewayAPIReconciler.CheckCRDExists(scheme.KindEnvoyProxy, envoygatewayv1alpha1.GroupVersion.String())
 	if err != nil {
 		klog.Fatalf("failed to check gatewayclass crd error: %v", err)
 	}
@@ -162,12 +163,12 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) WatchResources(ctx context.Con
 			&predicate.TypedGenerationChangedPredicate[*envoygatewayv1alpha1.EnvoyProxy]{},
 		))
 		if err != nil {
-			return fmt.Errorf("failed to watch %s: %v", KindEnvoyProxy, err)
+			return fmt.Errorf("failed to watch %s: %v", scheme.KindEnvoyProxy, err)
 		}
 	}
 
 	// INFO: 3. Watch Gateway CR
-	ok, err = gatewayAPIReconciler.CheckCRDExists(KindGateway, gatewayapiv1.GroupVersion.String())
+	ok, err = gatewayAPIReconciler.CheckCRDExists(scheme.KindGateway, gatewayapiv1.GroupVersion.String())
 	if err != nil || !ok {
 		klog.Fatalf("failed to check gateway crd error: %v", err)
 	}
@@ -196,7 +197,7 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) WatchResources(ctx context.Con
 		}),
 	))
 	if err != nil {
-		return fmt.Errorf("failed to watch %s: %v", KindGateway, err)
+		return fmt.Errorf("failed to watch %s: %v", scheme.KindGateway, err)
 	}
 	err = mgr.GetFieldIndexer().IndexField(context.Background(), &gatewayapiv1.Gateway{}, "spec.gatewayClassName", func(object client.Object) []string {
 		gateway := object.(*gatewayapiv1.Gateway)
@@ -207,7 +208,7 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) WatchResources(ctx context.Con
 	}
 
 	// INFO: 4. Watch HTTPRoute CR
-	ok, err = gatewayAPIReconciler.CheckCRDExists(KindHTTPRoute, gatewayapiv1.GroupVersion.String())
+	ok, err = gatewayAPIReconciler.CheckCRDExists(scheme.KindHTTPRoute, gatewayapiv1.GroupVersion.String())
 	if err != nil || !ok {
 		klog.Fatalf("failed to check HTTPRoute crd error: %v", err)
 	}
@@ -228,11 +229,11 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) WatchResources(ctx context.Con
 		predicate.TypedAnnotationChangedPredicate[*gatewayapiv1.HTTPRoute]{},
 	))
 	if err != nil {
-		return fmt.Errorf("failed to watch %s: %v", KindHTTPRoute, err)
+		return fmt.Errorf("failed to watch %s: %v", scheme.KindHTTPRoute, err)
 	}
 	err = addHTTPRouteIndexers(ctx, mgr)
 	if err != nil {
-		return fmt.Errorf("failed to add Indexer for %s: %v", KindHTTPRoute, err)
+		return fmt.Errorf("failed to add Indexer for %s: %v", scheme.KindHTTPRoute, err)
 	}
 
 	// INFO: 5. Watch Custom GVK CR
