@@ -1,0 +1,84 @@
+
+
+
+
+# Base config for a split xDS management server on 18000, admin port on 19000
+admin:
+  access_log_path: /dev/null
+  address:
+    socket_address:
+      address: 127.0.0.1
+      port_value: 19000
+
+node:
+  cluster: test-cluster
+  id: test-id
+
+static_resources:
+  clusters:
+    - connect_timeout: 1s
+      load_assignment:
+        cluster_name: xds_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 18000
+      http2_protocol_options: {}
+      name: xds_cluster
+
+dynamic_resources:
+  # 或者，和 envoy-gateway 保持一致
+  ads_config:
+    api_type: DELTA_GRPC
+    transport_api_version: V3
+    grpc_services:
+      - envoy_grpc:
+          cluster_name: xds_cluster
+    set_node_on_first_message_only: true
+  lds_config:
+    ads: { }
+    initial_fetch_timeout: 0s
+    resource_api_version: V3
+  cds_config:
+    ads: { }
+    initial_fetch_timeout: 0s
+    resource_api_version: V3
+
+  # 或者
+#  lds_config: # listener_discovery_service
+#    resource_api_version: V3
+#    api_config_source:
+#      api_type: GRPC
+#      transport_api_version: V3
+#      grpc_services:
+#        - envoy_grpc:
+#            cluster_name: xds_cluster
+#      set_node_on_first_message_only: true
+#
+#  cds_config: # cluster_discovery_service
+#    resource_api_version: V3
+#    api_config_source:
+#      api_type: GRPC
+#      transport_api_version: V3
+#      grpc_services:
+#        - envoy_grpc:
+#            cluster_name: xds_cluster
+#      set_node_on_first_message_only: true
+
+
+layered_runtime:
+  layers:
+    - name: runtime-0
+      rtds_layer:
+        rtds_config: # runtime_discovery_service
+          resource_api_version: V3
+          api_config_source:
+            transport_api_version: V3
+            api_type: GRPC
+            grpc_services:
+              envoy_grpc:
+                cluster_name: xds_cluster
+        name: runtime-0

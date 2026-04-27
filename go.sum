@@ -74,6 +74,8 @@ github.com/envoyproxy/go-control-plane/contrib v1.36.1-0.20260308004542-b60714bc
 github.com/envoyproxy/go-control-plane/contrib v1.36.1-0.20260308004542-b60714bc2ea3/go.mod h1:LfmAJfFS1Ha4Q7vB1gcK+Z+29GFOOFvfjM2egIXKTN8=
 github.com/envoyproxy/go-control-plane/envoy v1.37.1-0.20260308004542-b60714bc2ea3 h1:3gQmFqHGgIWDZeWzBa2nKahImTIEVcR0PcGezOgRWOQ=
 github.com/envoyproxy/go-control-plane/envoy v1.37.1-0.20260308004542-b60714bc2ea3/go.mod h1:237/ZQHepDd4v5BjpRNFI2mMG7WEBd+mQnt8jwbqrnk=
+github.com/envoyproxy/go-control-plane/ratelimit v0.1.1-0.20260115164926-066cbd5b3989 h1:8tBwE+GI3IWMywGVrJjc2grm7SCpPMydVu+HiBYb4+E=
+github.com/envoyproxy/go-control-plane/ratelimit v0.1.1-0.20260115164926-066cbd5b3989/go.mod h1:buWyXJdrI6ayYbeGm3upu3Qf/qHHrdWfUHKnVrTD+vM=
 github.com/envoyproxy/protoc-gen-validate v1.3.3 h1:MVQghNeW+LZcmXe7SY1V36Z+WFMDjpqGAGacLe2T0ds=
 github.com/envoyproxy/protoc-gen-validate v1.3.3/go.mod h1:TsndJ/ngyIdQRhMcVVGDDHINPLWB7C82oDArY51KfB0=
 github.com/evanphx/json-patch v5.9.11+incompatible h1:ixHHqfcGvxhWkniF1tWxBHA0yb4Z+d1UQi45df52xW8=
