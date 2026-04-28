@@ -10,5 +10,3 @@ type EnvoyExtensionFeatures struct {
 	// Lua extensions
 	//Luas []Lua `json:"luas,omitempty" yaml:"luas,omitempty"`
 }
-
-

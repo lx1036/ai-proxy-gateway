@@ -2,7 +2,6 @@ package ir
 
 import (
 	envoygatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
-
 )
 
 // Infra
@@ -37,7 +36,6 @@ func (proxyInfra *ProxyInfra) GetEnvoyProxy() *envoygatewayv1alpha1.EnvoyProxy {
 	return proxyInfra.EnvoyProxy
 }
 
-
 // InfraMetadata
 // +k8s:deepcopy-gen=true
 type InfraMetadata struct {
@@ -60,7 +58,7 @@ func NewInfraMetadata() *InfraMetadata {
 type ResourceMetadata struct {
 	Kind string `json:"kind,omitempty" yaml:"kind,omitempty"`
 
-	Name      string `json:"name" yaml:"name"`
+	Name string `json:"name" yaml:"name"`
 
 	Namespace string `json:"namespace" yaml:"namespace"`
 }

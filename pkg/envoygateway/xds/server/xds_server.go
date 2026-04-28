@@ -28,15 +28,14 @@ type XdsServer struct {
 
 	cache cache.SnapshotCacheWithCallbacks
 
-	XdsIR             *message.XdsIR
-
+	XdsIR *message.XdsIR
 }
 
 func NewXdsServer(ctx context.Context, xdsIR *message.XdsIR) *XdsServer {
 
 	xdsServer := &XdsServer{
 		cache: cache.NewSnapshotCache(true),
-		XdsIR:          xdsIR,
+		XdsIR: xdsIR,
 	}
 
 	grpcOpts := []grpc.ServerOption{
@@ -81,10 +80,7 @@ func (xdsServer *XdsServer) Start(ctx context.Context) error {
 				return
 			}
 
-
-
 		} else { // Create or Update
-
 
 			t := translator.Translator{}
 			result, err := t.Translate(xdsIR)
@@ -102,7 +98,6 @@ func (xdsServer *XdsServer) Start(ctx context.Context) error {
 			}
 
 		}
-
 
 	})
 

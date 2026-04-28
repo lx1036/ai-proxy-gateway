@@ -1,0 +1,56 @@
+
+
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  labels:
+    app.kubernetes.io/component: aibrix-gateway-plugin
+    app.kubernetes.io/managed-by: kubectl
+    app.kubernetes.io/name: aibrix
+    app.kubernetes.io/version: nightly
+  name: aibrix-epp
+  namespace: aibrix-system
+spec:
+  jsonPatches:
+    - name: aibrix-system/aibrix-eg/http
+      operation:
+        op: add
+        path: /virtual_hosts/0/routes/0
+        value:
+          match:
+            headers:
+              - name: routing-strategy
+                string_match:
+                  safe_regex:
+                    regex: .*
+            prefix: /v1
+          name: original_route
+          route:
+            cluster: original_destination_cluster
+            timeout: 120s
+          typed_per_filter_config:
+            envoy.filters.http.ext_proc/envoyextensionpolicy/aibrix-system/aibrix-gateway-plugins-extension-policy/extproc/0:
+              '@type': type.googleapis.com/envoy.config.route.v3.FilterConfig
+              config: {}
+      type: type.googleapis.com/envoy.config.route.v3.RouteConfiguration
+
+    - name: envoy-patch-policy-override2
+      operation:
+        op: add
+        path: ""
+        value:
+          connect_timeout: 6s
+          dns_lookup_family: V4_ONLY
+          lb_policy: CLUSTER_PROVIDED
+          name: original_destination_cluster
+          original_dst_lb_config:
+            http_header_name: target-pod
+            use_http_header: true
+          type: ORIGINAL_DST
+      type: type.googleapis.com/envoy.config.cluster.v3.Cluster
+
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: aibrix-eg
+  type: JSONPatch

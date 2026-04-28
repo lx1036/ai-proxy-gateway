@@ -1,14 +1,15 @@
 package scheme
 
-
 const (
 	KindGatewayClass = "GatewayClass"
-	KindGateway = "Gateway"
-	KindHTTPRoute = "HTTPRoute"
+	KindGateway      = "Gateway"
+	KindHTTPRoute    = "HTTPRoute"
 
 	KindEnvoyProxy = "EnvoyProxy"
-)
 
+	KindService       = "Service"
+	KindServiceImport = "ServiceImport"
+)
 
 // EnvoyAppLabel returns the labels used for all Envoy resources.
 func EnvoyAppLabel() map[string]string {
@@ -18,6 +19,3 @@ func EnvoyAppLabel() map[string]string {
 		"app.kubernetes.io/managed-by": "envoy-gateway",
 	}
 }
-
-
-

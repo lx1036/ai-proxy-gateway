@@ -1,10 +1,10 @@
 package version
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"runtime"
-	"encoding/json"
 	"sigs.k8s.io/yaml"
 )
 

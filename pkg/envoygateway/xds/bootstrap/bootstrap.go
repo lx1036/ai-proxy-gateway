@@ -8,7 +8,6 @@ import (
 
 	"encoding/base64"
 	"text/template"
-
 )
 
 const (

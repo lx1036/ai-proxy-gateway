@@ -1,9 +1,5 @@
 package ir
 
-
-
-
-
 // RouteDestination holds the destination details associated with the route
 // +kubebuilder:object:generate=true
 type RouteDestination struct {
@@ -19,18 +15,13 @@ type RouteDestination struct {
 	Metadata *ResourceMetadata `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
-
 // DestinationSetting holds the settings associated with the destination
 // +kubebuilder:object:generate=true
 type DestinationSetting struct {
 	// Name of the setting
 	Name string `json:"name" yaml:"name"`
 
-
 	Endpoints []*DestinationEndpoint `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`
-
-
-
 }
 
 // DestinationEndpoint holds the endpoint details associated with the destination

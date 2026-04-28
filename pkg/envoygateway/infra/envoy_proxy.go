@@ -11,7 +11,7 @@ import (
 	"github.com/lx1036/gateway/pkg/envoygateway/ir"
 )
 
-func (infra *Infra) CreateOrUpdateProxyInfra(ctx context.Context, infraIR *ir.Infra)  {
+func (infra *Infra) CreateOrUpdateProxyInfra(ctx context.Context, infraIR *ir.Infra) {
 
 	render, err := NewResourceRender(ctx, infraIR)
 
@@ -30,11 +30,7 @@ func (infra *Infra) createOrUpdate(ctx context.Context, render *ResourceRender) 
 
 func (infra *Infra) createOrUpdateDeployment(ctx context.Context, render *ResourceRender) error {
 
-
 	deployment, err := render.Deployment()
-
-
-
 
 	old := &appsv1.Deployment{}
 
@@ -53,7 +49,6 @@ func (infra *Infra) createOrUpdateDeployment(ctx context.Context, render *Resour
 
 	if !equality.Semantic.DeepEqual(old.Spec.Selector, deployment.Spec.Selector) {
 	}
-
 
 	// INFO: 2. update deployment
 	return infra.InfraClient.ServerSideApply(ctx, deployment)

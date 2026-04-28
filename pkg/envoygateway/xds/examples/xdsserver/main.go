@@ -7,19 +7,19 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	listenerv3 "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
 	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
 	discoveryv3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/service/endpoint/v3"
+	listenerv3 "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
 	runtimev3 "github.com/envoyproxy/go-control-plane/envoy/service/runtime/v3"
 	secretv3 "github.com/envoyproxy/go-control-plane/envoy/service/secret/v3"
 
-	listenerConfigv3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	coreConfigv3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	routeConfigv3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	clusterConfigv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	coreConfigv3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpointConfigv3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	listenerConfigv3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	routeConfigv3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	cachev3 "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
@@ -27,8 +27,8 @@ import (
 	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	testv3 "github.com/envoyproxy/go-control-plane/pkg/test/v3"
 
-	httpConnectionManagerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	httpRouterv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
+	httpConnectionManagerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -144,38 +144,40 @@ func GenerateNewSnapshot(ctx context.Context, cache cachev3.SnapshotCache) {
 	}
 }
 
-/**
-  listeners:
-  - name: listener_0
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 10000
-    filter_chains:
-    - filters:
-      - name: envoy.filters.network.http_connection_manager
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: ingress_http
-          access_log:
-          - name: envoy.access_loggers.stdout
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
-          http_filters:
-          - name: envoy.filters.http.router
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
-          route_config:
-            name: local_route
-            virtual_hosts:
-            - name: local_service
-              domains: ["*"]
-              routes:
-              - match:
-                  prefix: "/"
-                route:
-                  host_rewrite_literal: www.baidu.com
-                  cluster: service_envoyproxy_io
+/*
+*
+
+	listeners:
+	- name: listener_0
+	  address:
+	    socket_address:
+	      address: 0.0.0.0
+	      port_value: 10000
+	  filter_chains:
+	  - filters:
+	    - name: envoy.filters.network.http_connection_manager
+	      typed_config:
+	        "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+	        stat_prefix: ingress_http
+	        access_log:
+	        - name: envoy.access_loggers.stdout
+	          typed_config:
+	            "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+	        http_filters:
+	        - name: envoy.filters.http.router
+	          typed_config:
+	            "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+	        route_config:
+	          name: local_route
+	          virtual_hosts:
+	          - name: local_service
+	            domains: ["*"]
+	            routes:
+	            - match:
+	                prefix: "/"
+	              route:
+	                host_rewrite_literal: www.baidu.com
+	                cluster: service_envoyproxy_io
 */
 func makeListener() *listenerConfigv3.Listener {
 	routerConfig, _ := anypb.New(&httpRouterv3.Router{})
@@ -251,19 +253,21 @@ func makeListener() *listenerConfigv3.Listener {
 	}
 }
 
-/**
-  route_config:
-  name: local_route
-  virtual_hosts:
-    - name: local_service
-      domains:
-        - "*"
-      routes:
-        - match:
-            prefix: "/"
-          route:
-            host_rewrite_literal: www.baidu.com
-            cluster: example_proxy_cluster
+/*
+*
+
+	route_config:
+	name: local_route
+	virtual_hosts:
+	  - name: local_service
+	    domains:
+	      - "*"
+	    routes:
+	      - match:
+	          prefix: "/"
+	        route:
+	          host_rewrite_literal: www.baidu.com
+	          cluster: example_proxy_cluster
 */
 func makeRoute(upstreamAddr string) *routeConfigv3.RouteConfiguration {
 	return &routeConfigv3.RouteConfiguration{

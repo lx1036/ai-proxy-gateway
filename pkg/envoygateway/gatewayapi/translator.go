@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	envoygatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
-
 )
 
 const (
@@ -41,11 +40,12 @@ func NewTranslator(infraIR *message.InfraIR, xdsIR *message.XdsIR) (*Translator,
 func (translator *Translator) Start(ctx context.Context) error {
 
 	sub := translator.ProviderResources.GatewayAPIResources.Subscribe(ctx)
-	go message.HandleSubscription(sub, func(update watchable.Update[string, *resource.ControllerResources]) {
+	go message.HandleSubscription(sub, func(update watchable.Update[string, *message.GatewayAPIResources]) {
 
 		resources := *update.Value
 		for _, res := range resources {
 
+			//
 			result := translator.Translate(res)
 
 			// INFO: 1. publish infraIR
@@ -67,7 +67,7 @@ func (translator *Translator) Start(ctx context.Context) error {
 	return nil
 }
 
-func (translator *Translator) Translate(res *resource.Resources) *TranslateResult {
+func (translator *Translator) Translate(res *message.GatewayAPIResource) *TranslateResult {
 
 	acceptedGateways, failedGateways := translator.GetRelevantGateways(res)
 
@@ -81,11 +81,11 @@ func (translator *Translator) Translate(res *resource.Resources) *TranslateResul
 	allGateways = append(allGateways, acceptedGateways...)
 	allGateways = append(allGateways, failedGateways...)
 
-
 	// Process EnvoyExtensionPolicies
 	envoyExtensionPolicies := translator.ProcessEnvoyExtensionPolicies()
 
-
+	// Process EnvoyPatchPolicies
+	translator.ProcessEnvoyPatchPolicies(res.EnvoyPatchPolicies, xdsIR)
 
 	return NewTranslateResult(allGateways, httpRoutes, envoyExtensionPolicies, xdsIR, infraIR)
 }

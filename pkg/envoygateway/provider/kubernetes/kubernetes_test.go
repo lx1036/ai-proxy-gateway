@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"github.com/lx1036/gateway/pkg/envoygateway/gatewayapi/resource"
 	"github.com/lx1036/gateway/pkg/envoygateway/message"
 	"github.com/telepresenceio/watchable"
 	"k8s.io/klog/v2"
@@ -32,7 +31,7 @@ func TestKubernetesProvider(test *testing.T) {
 	//	}
 	//}()
 
-	go message.HandleSubscription(sub, func(update watchable.Update[string, *resource.ControllerResources]) {
+	go message.HandleSubscription(sub, func(update watchable.Update[string, *message.GatewayAPIResources]) {
 		klog.Infof("watch update: %+v", update)
 		// watch update: {Key:gateway.envoyproxy.io/gatewayclass-controller Delete:false Value:0x14000426738}
 		resources := *update.Value

@@ -18,7 +18,6 @@ type SnapshotCacheWithCallbacks interface {
 	SetSnapshotCache(ctx context.Context, node string, resources resource.XdsResources) error
 }
 
-
 type SnapshotCache struct {
 	snapshotVersion int64
 
@@ -54,7 +53,6 @@ func (snapshotCache *SnapshotCache) SetSnapshotCache(ctx context.Context, node s
 
 	return snapshotCache.SetSnapshot(ctx, node, resourceSnapshot)
 }
-
 
 func (snapshotCache *SnapshotCache) OnFetchRequest(ctx context.Context, request *discovery.DiscoveryRequest) error {
 	//TODO implement me
@@ -105,4 +103,3 @@ func (snapshotCache *SnapshotCache) OnStreamDeltaResponse(i int64, request *disc
 	//TODO implement me
 	panic("implement me")
 }
-

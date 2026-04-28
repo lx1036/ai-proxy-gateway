@@ -3,14 +3,21 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/lx1036/gateway/pkg/envoygateway/gatewayapi/resource"
+	"slices"
+	"time"
+
 	"github.com/lx1036/gateway/pkg/envoygateway/message"
 	"github.com/lx1036/gateway/pkg/envoygateway/scheme"
+
+	envoygatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -19,13 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"slices"
-	"time"
-
-	envoygatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/client-go/util/retry"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
@@ -42,6 +42,9 @@ type GatewayAPIReconciler struct {
 	extBackendGVKs []schema.GroupVersionKind
 
 	resources *message.ProviderResources
+
+	envoyExtensionPolicyCRDExists bool
+	envoyPatchPolicyCRDExists     bool
 }
 
 func NewGatewayAPIReconciler(ctx context.Context, mgr manager.Manager, resources *message.ProviderResources) error {
@@ -91,21 +94,32 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) Reconcile(ctx context.Context,
 		return reconcile.Result{}, nil
 	}
 
-	gatewayClassResources := make(resource.ControllerResources, 0, len(gatewayClasses))
+	gatewayClassResources := make(message.GatewayAPIResources, 0, len(gatewayClasses))
 	for _, gatewayClass := range gatewayClasses {
-		resources := resource.NewResources()
-		resources.GatewayClass = gatewayClass
+		gatewayAPIResource := message.NewGatewayAPIResource()
+		gatewayAPIResource.GatewayClass = gatewayClass
 
-		gatewayClassResources = append(gatewayClassResources, resources)
+		// 1. Add all gateways/routes to the gatewayAPIResource
+		err = gatewayAPIReconciler.processGateways(ctx, gatewayClass, gatewayAPIResource)
 
-		err = gatewayAPIReconciler.processGateways(ctx, gatewayClass, resources)
+		if gatewayAPIReconciler.envoyExtensionPolicyCRDExists {
 
+			gatewayAPIReconciler.processEnvoyExtensionPolicy(ctx)
+
+		}
+
+		if gatewayAPIReconciler.envoyPatchPolicyCRDExists {
+
+			err = gatewayAPIReconciler.processEnvoyPatchPolicy()
+		}
+
+		gatewayClassResources = append(gatewayClassResources, gatewayAPIResource)
 	}
 
 	// sort before store 为了：1. 避免重复的 resources 被 watchable layer 去更新 envoy xds 2. gateway-api layer 确保 resources 资源顺序
 	//gatewayClassResources.Sort()
 
-	// INFO: 2. Publish GatewayAPIResources
+	// INFO: 2. Publish GatewayAPIResource
 	//klog.Infof("list gatewayClassResources %d", len(gatewayClassResources))
 	gatewayAPIReconciler.resources.GatewayAPIResources.Store(string(gatewayAPIReconciler.classController), &gatewayClassResources)
 
@@ -234,6 +248,65 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) WatchResources(ctx context.Con
 	err = addHTTPRouteIndexers(ctx, mgr)
 	if err != nil {
 		return fmt.Errorf("failed to add Indexer for %s: %v", scheme.KindHTTPRoute, err)
+	}
+
+	// INFO:  Watch EnvoyExtensionPolicy CR
+	gatewayAPIReconciler.envoyExtensionPolicyCRDExists, err = gatewayAPIReconciler.CheckCRDExists(envoygatewayv1alpha1.KindEnvoyExtensionPolicy, gatewayapiv1.GroupVersion.String())
+	if err != nil {
+		klog.Fatalf("failed to check %s crd error: %v", envoygatewayv1alpha1.KindEnvoyExtensionPolicy, err)
+	}
+	if !gatewayAPIReconciler.envoyExtensionPolicyCRDExists {
+		klog.Infof("EnvoyExtensionPolicy CRD not found, skipping EnvoyExtensionPolicy watch")
+	} else {
+		err = c.Watch(source.Kind(
+			mgr.GetCache(),
+			&envoygatewayv1alpha1.EnvoyExtensionPolicy{},
+			handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, object *envoygatewayv1alpha1.EnvoyExtensionPolicy) []reconcile.Request {
+				return []reconcile.Request{
+					{
+						NamespacedName: types.NamespacedName{
+							Name: string(gatewayAPIReconciler.classController),
+						},
+					},
+				}
+			}),
+			predicate.TypedGenerationChangedPredicate[*envoygatewayv1alpha1.EnvoyExtensionPolicy]{},
+		))
+		if err != nil {
+			return fmt.Errorf("failed to watch %s: %v", envoygatewayv1alpha1.KindEnvoyExtensionPolicy, err)
+		}
+
+		err = addEnvoyExtensionPolicyIndexers(ctx, mgr)
+		if err != nil {
+			return fmt.Errorf("failed to add Indexer for %s: %v", envoygatewayv1alpha1.KindEnvoyExtensionPolicy, err)
+		}
+	}
+
+	// INFO:  Watch EnvoyPatchPolicy CR
+	gatewayAPIReconciler.envoyPatchPolicyCRDExists, err = gatewayAPIReconciler.CheckCRDExists(envoygatewayv1alpha1.KindEnvoyPatchPolicy, gatewayapiv1.GroupVersion.String())
+	if err != nil {
+		klog.Fatalf("failed to check HTTPRoute crd error: %v", err)
+	}
+	if !gatewayAPIReconciler.envoyPatchPolicyCRDExists {
+		klog.Infof("EnvoyPatchPolicy CRD not found, skipping EnvoyPatchPolicy watch")
+	} else {
+		err = c.Watch(source.Kind(
+			mgr.GetCache(),
+			&envoygatewayv1alpha1.EnvoyPatchPolicy{},
+			handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, object *envoygatewayv1alpha1.EnvoyPatchPolicy) []reconcile.Request {
+				return []reconcile.Request{
+					{
+						NamespacedName: types.NamespacedName{
+							Name: string(gatewayAPIReconciler.classController),
+						},
+					},
+				}
+			}),
+			predicate.TypedGenerationChangedPredicate[*envoygatewayv1alpha1.EnvoyPatchPolicy]{},
+		))
+		if err != nil {
+			return fmt.Errorf("failed to watch %s: %v", envoygatewayv1alpha1.KindEnvoyPatchPolicy, err)
+		}
 	}
 
 	// INFO: 5. Watch Custom GVK CR

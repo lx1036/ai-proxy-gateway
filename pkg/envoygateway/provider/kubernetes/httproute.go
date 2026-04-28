@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/lx1036/gateway/pkg/envoygateway/gatewayapi/resource"
+	"github.com/lx1036/gateway/pkg/envoygateway/message"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
@@ -11,7 +11,7 @@ import (
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
-func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoutes(ctx context.Context, gateway gatewayapiv1.Gateway, resources *resource.Resources) error {
+func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoutes(ctx context.Context, gateway gatewayapiv1.Gateway, resources *message.GatewayAPIResource) error {
 
 	// kubectl get httproute -A --field-selector spec.parentRefs=envoy-gateway-system/envoy-gateway
 	var httpRouteList gatewayapiv1.HTTPRouteList
@@ -36,15 +36,15 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoutes(ctx context.
 }
 
 func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoute(ctx context.Context, httpRoute *gatewayapiv1.HTTPRoute,
-	resources *resource.Resources) {
+	resources *message.GatewayAPIResource) {
 
 	for _, rule := range httpRoute.Spec.Rules {
 
-		for _, backendRefs := range rule.BackendRefs {
+		for _, backendRef := range rule.BackendRefs {
 
-			gatewayAPIReconciler.processBackendRef(ctx, backendRefs)
+			gatewayAPIReconciler.processBackendRef(ctx, backendRef.BackendObjectReference)
 
-			for _, filter := range backendRefs.Filters {
+			for _, filter := range backendRef.Filters {
 				gatewayAPIReconciler.processHTTPRouteFilter(ctx, filter)
 			}
 
@@ -59,10 +59,7 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoute(ctx context.C
 
 }
 
-func (gatewayAPIReconciler *GatewayAPIReconciler) processBackendRef(ctx context.Context, backendRef gatewayapiv1.HTTPBackendRef) {
 
-	// TODO: ReferenceGrant
-}
 
 func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRouteFilter(ctx context.Context, filter gatewayapiv1.HTTPRouteFilter) {
 	switch filter.Type {

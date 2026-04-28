@@ -33,7 +33,7 @@ func NewInfra(infraIR *message.InfraIR) (*Infra, error) {
 
 	return &Infra{
 		InfraClient: NewInfraClient(k8sClient),
-		InfraIR: infraIR,
+		InfraIR:     infraIR,
 	}, nil
 }
 
@@ -52,4 +52,3 @@ func (infra *Infra) Start(ctx context.Context) error {
 
 	return nil
 }
-

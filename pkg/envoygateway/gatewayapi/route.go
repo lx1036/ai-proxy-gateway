@@ -9,7 +9,6 @@ type HTTPRouteContext struct {
 	*gatewayapiv1.HTTPRoute
 }
 
-
 func (translator *Translator) ProcessHTTPRoutes(resources *resource.Resources) []*HTTPRouteContext {
 	relevantHTTPRoutes := make([]*HTTPRouteContext, 0, len(resources.HTTPRoutes))
 
@@ -21,7 +20,6 @@ func (translator *Translator) ProcessHTTPRoutes(resources *resource.Resources) [
 
 		relevantHTTPRoutes = append(relevantHTTPRoutes, httpRouteContext)
 	}
-
 
 	return relevantHTTPRoutes
 }

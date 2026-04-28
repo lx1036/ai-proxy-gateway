@@ -8,8 +8,7 @@ import (
 	"github.com/lx1036/gateway/pkg/envoygateway/provider/kubernetes"
 )
 
-func startRunners(ctx context.Context)  {
-
+func startRunners(ctx context.Context) {
 
 	providerResources := new(message.ProviderResources)
 	infraIR := new(message.InfraIR)
@@ -17,12 +16,7 @@ func startRunners(ctx context.Context)  {
 
 	provider, err := kubernetes.NewProvider(ctx, providerResources)
 
-
-
 	translator, err := gatewayapi.NewTranslator(infraIR, xdsIR)
-
 
 	ifr, err := infra.NewInfra(infraIR)
 }
-
-

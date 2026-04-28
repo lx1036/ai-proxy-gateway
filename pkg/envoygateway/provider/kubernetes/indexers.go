@@ -9,9 +9,8 @@ import (
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
-const  (
-	gatewayHTTPRouteIndex            = "gatewayHTTPRouteIndex"
-
+const (
+	gatewayHTTPRouteIndex = "gatewayHTTPRouteIndex"
 )
 
 func addHTTPRouteIndexers(ctx context.Context, mgr manager.Manager) error {

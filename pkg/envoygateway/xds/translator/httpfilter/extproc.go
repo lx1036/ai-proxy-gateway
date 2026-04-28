@@ -93,7 +93,7 @@ func extProcConfig(extProc *ir.ExtProc) (*extprocv3.ExternalProcessor, error) {
 					Authority:   extProc.Authority,
 				},
 			},
-			Timeout:         durationpb.New(time.Second * 10),
+			Timeout: durationpb.New(time.Second * 10),
 		},
 		ProcessingMode: buildProcessingMode(extProc),
 	}
@@ -119,7 +119,6 @@ func buildProcessingMode(extProc *ir.ExtProc) *extprocv3.ProcessingMode {
 			processingMode.RequestTrailerMode = extprocv3.ProcessingMode_SEND
 		}
 	}
-
 
 	if extProc.ResponseHeaderProcessing {
 		processingMode.ResponseHeaderMode = extprocv3.ProcessingMode_SEND

@@ -11,9 +11,6 @@ type GatewayContext struct {
 	*gatewayapiv1.Gateway
 }
 
-
-
-
 func (translator *Translator) GetRelevantGateways(resources *resource.Resources) (acceptedGateways, failedGateways []*GatewayContext) {
 
 	for _, gateway := range resources.Gateways {
@@ -28,11 +25,8 @@ func (translator *Translator) GetRelevantGateways(resources *resource.Resources)
 			continue
 		}
 
-
-
 		acceptedGateways = append(acceptedGateways, gCtx)
 	}
-
 
 	return acceptedGateways, failedGateways
 }

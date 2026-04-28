@@ -1,9 +1,7 @@
 package ir
 
-
 import (
 	envoygatewayv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
-
 )
 
 type ExtProcBodyProcessingMode envoygatewayv1alpha1.ExtProcBodyProcessingMode
@@ -24,7 +22,6 @@ const (
 type ExtProc struct {
 	Name string `json:"name" yaml:"name"`
 
-
 	// Authority is the hostname:port of the HTTP External Processing service.
 	Authority string `json:"authority" yaml:"authority"`
 
@@ -43,4 +40,3 @@ type ExtProc struct {
 	// ResponseBodyProcessingMode Defines response body processing
 	ResponseBodyProcessingMode *ExtProcBodyProcessingMode `json:"responseBodyProcessingMode,omitempty" yaml:"responseBodyProcessingMode,omitempty"`
 }
-

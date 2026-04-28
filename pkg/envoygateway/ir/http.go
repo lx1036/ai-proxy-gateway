@@ -1,7 +1,5 @@
 package ir
 
-
-
 // HTTPListener
 // +k8s:deepcopy-gen=true
 type HTTPListener struct {
@@ -22,9 +20,6 @@ type HTTPRoute struct {
 	// Hostname that the route matches against
 	Hostname string `json:"hostname" yaml:"hostname,omitempty"`
 
-
 	// EnvoyExtension holds the features associated with EnvoyExtensionPolicy
 	EnvoyExtensions *EnvoyExtensionFeatures `json:"envoyExtensions,omitempty" yaml:"envoyExtensions,omitempty"`
 }
-
-

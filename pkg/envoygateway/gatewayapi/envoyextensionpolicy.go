@@ -71,9 +71,11 @@ func (translator *Translator) buildExtProcs(policy *envoygatewayv1alpha1.EnvoyEx
 
 func (translator *Translator) buildExtProc(extProc envoygatewayv1alpha1.ExtProc) (*ir.ExtProc, error) {
 
+	routeDestination, err := translator.translateExtServiceBackendRefs(extProc)
+
 	extProcIR := &ir.ExtProc{
 		Name:        name,
-		Destination: *rd,
+		Destination: *routeDestination,
 		Traffic:     traffic,
 		Authority:   authority,
 	}
