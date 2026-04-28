@@ -11,7 +11,8 @@ import (
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
-func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoutes(ctx context.Context, gateway gatewayapiv1.Gateway, resources *message.GatewayAPIResource) error {
+func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoutes(ctx context.Context, gateway gatewayapiv1.Gateway,
+	resourceMap *resourceMappings, resources *message.GatewayAPIResource) error {
 
 	// kubectl get httproute -A --field-selector spec.parentRefs=envoy-gateway-system/envoy-gateway
 	var httpRouteList gatewayapiv1.HTTPRouteList
@@ -29,39 +30,53 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoutes(ctx context.
 
 	for i := range httpRouteList.Items {
 		httpRoute := &httpRouteList.Items[i]
-		gatewayAPIReconciler.processHTTPRoute(ctx, httpRoute, resources)
+		gatewayAPIReconciler.processHTTPRoute(ctx, httpRoute, resourceMap, resources)
 	}
 
 	return nil
 }
 
 func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRoute(ctx context.Context, httpRoute *gatewayapiv1.HTTPRoute,
-	resources *message.GatewayAPIResource) {
+	resourceMap *resourceMappings, resources *message.GatewayAPIResource) {
+	key := types.NamespacedName{
+		Namespace: httpRoute.Namespace,
+		Name:      httpRoute.Name,
+	}.String()
+	if resourceMap.allAssociatedHTTPRoutes.Has(key) {
+		klog.Infof("HTTPRoute %s/%s has been processed", httpRoute.Namespace, httpRoute.Name)
+		return
+	}
+
+	klog.Infof("processing HTTPRoute %s/%s", httpRoute.Namespace, httpRoute.Name)
 
 	for _, rule := range httpRoute.Spec.Rules {
 
 		for _, backendRef := range rule.BackendRefs {
 
-			gatewayAPIReconciler.processBackendRef(ctx, backendRef.BackendObjectReference)
+			gatewayAPIReconciler.processBackendRef(ctx, resourceMap, backendRef.BackendObjectReference)
 
 			for _, filter := range backendRef.Filters {
-				gatewayAPIReconciler.processHTTPRouteFilter(ctx, filter)
+				gatewayAPIReconciler.processHTTPRouteFilter(ctx, resourceMap, filter)
 			}
 
 		}
 
 		for _, filter := range rule.Filters {
-			gatewayAPIReconciler.processHTTPRouteFilter(ctx, filter)
+			gatewayAPIReconciler.processHTTPRouteFilter(ctx, resourceMap, filter)
 		}
 	}
 
+	resourceMap.allAssociatedNamespaces.Insert(httpRoute.Namespace)
+	resourceMap.allAssociatedHTTPRoutes.Insert(key)
+	// Discard Status to reduce memory consumption in watchable
+	// It will be recomputed by the gateway-api layer
+	httpRoute.Status = gatewayapiv1.HTTPRouteStatus{} // TODO: ???
 	resources.HTTPRoutes = append(resources.HTTPRoutes, httpRoute)
-
 }
 
 
 
-func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRouteFilter(ctx context.Context, filter gatewayapiv1.HTTPRouteFilter) {
+func (gatewayAPIReconciler *GatewayAPIReconciler) processHTTPRouteFilter(ctx context.Context, resourceMap *resourceMappings, filter gatewayapiv1.HTTPRouteFilter) {
 	switch filter.Type {
 	case gatewayapiv1.HTTPRouteFilterRequestMirror:
 		//gatewayAPIReconciler.processHTTPRouteFilterRequestMirror(ctx, filter.RequestMirror)

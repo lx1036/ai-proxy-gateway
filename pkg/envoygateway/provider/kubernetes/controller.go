@@ -80,7 +80,7 @@ func NewGatewayAPIReconciler(ctx context.Context, mgr manager.Manager, resources
 
 func (gatewayAPIReconciler *GatewayAPIReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	/**
-	INFO: 0. 构建 gateway-api 全局资源视图，每一个资源的更新（包括任意子资源），都会触发构建全局资源视图。
+	INFO: 0. 构建 gateway-api 全局资源视图，每一个资源的更新（包括任意子资源），都会触发构建全局资源视图。这个设计很重要!!!
 	*/
 
 	// INFO: 1. 聚合所有 gateway-api resources. 一个 Reconcile update 多个 resources.
@@ -99,18 +99,18 @@ func (gatewayAPIReconciler *GatewayAPIReconciler) Reconcile(ctx context.Context,
 		gatewayAPIResource := message.NewGatewayAPIResource()
 		gatewayAPIResource.GatewayClass = gatewayClass
 
+		// INFO: ResourceMapping 的设计是因为，任何一个资源更新都会触发 Reconcile，需要标记已经处理过的资源无需处理，如已处理的 default/abc HTTPRoute 无需再处理。设计没问题。
+		gwcResourceMapping := newResourceMapping()
+
 		// 1. Add all gateways/routes to the gatewayAPIResource
-		err = gatewayAPIReconciler.processGateways(ctx, gatewayClass, gatewayAPIResource)
+		err = gatewayAPIReconciler.processGateways(ctx, gatewayClass, gwcResourceMapping, gatewayAPIResource)
 
 		if gatewayAPIReconciler.envoyExtensionPolicyCRDExists {
-
-			gatewayAPIReconciler.processEnvoyExtensionPolicy(ctx)
-
+			gatewayAPIReconciler.processEnvoyExtensionPolicy(ctx, gatewayAPIResource)
 		}
 
 		if gatewayAPIReconciler.envoyPatchPolicyCRDExists {
-
-			err = gatewayAPIReconciler.processEnvoyPatchPolicy()
+			gatewayAPIReconciler.processEnvoyPatchPolicy(ctx, gatewayAPIResource)
 		}
 
 		gatewayClassResources = append(gatewayClassResources, gatewayAPIResource)

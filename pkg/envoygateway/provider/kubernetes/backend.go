@@ -6,7 +6,8 @@ import (
 )
 
 
-func (gatewayAPIReconciler *GatewayAPIReconciler) processBackendRef(ctx context.Context, backendRef gatewayapiv1.BackendObjectReference) {
+func (gatewayAPIReconciler *GatewayAPIReconciler) processBackendRef(ctx context.Context,
+	resourceMap *resourceMappings, backendRef gatewayapiv1.BackendObjectReference) {
 
 	// TODO: ReferenceGrant
 }
