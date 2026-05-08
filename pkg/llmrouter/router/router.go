@@ -110,12 +110,14 @@ func (r *Router) scheduling(c *gin.Context, modelRequest ModelRequest) {
 	prefillEndpoint := "localhost:18080"
 	decodeEndpoint := "localhost:18081"
 
-	r.proxyPrefillDecode(prefillEndpoint, decodeEndpoint)
+	r.proxyPrefillDecode(c, modelRequest, prefillEndpoint, decodeEndpoint)
 }
 
-func (r *Router) proxyPrefillDecode(prefillEndpoint, decodeEndpoint string) {
+func (r *Router) proxyPrefillDecode(c *gin.Context, modelRequest ModelRequest, prefillEndpoint, decodeEndpoint string) {
 
-	pd.GetConnector()
+	connectorName := "lmcache"
+	connector := pd.GetConnector(connectorName)
+	connector().Proxy(c, modelRequest, prefillEndpoint, decodeEndpoint)
 
 }
 

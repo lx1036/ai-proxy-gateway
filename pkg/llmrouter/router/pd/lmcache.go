@@ -15,20 +15,22 @@ import (
 type LMCacheConnector struct {
 }
 
-func NewLMCacheConnector() Connector {
+func NewLMCacheConnector() KVConnector {
 	return &LMCacheConnector{}
 }
 
 func (connector *LMCacheConnector) Proxy(c *gin.Context, modelRequest map[string]interface{}, prefillEndpoint, decodeEndpoint string) {
 
-	prefillReq := buildPrefillRequest(c.Request, modelRequest)
-	decodeReq := buildDecodeRequest(c.Request, modelRequest)
+	prefillReq := connector.buildPrefillRequest(c.Request, modelRequest)
+	decodeReq := connector.buildDecodeRequest(c.Request, modelRequest)
 
+	// INFO: 1. prefill
 	err := connector.prefill(prefillReq, prefillEndpoint)
 	if err != nil {
 
 	}
 
+	// INFO: 2. decode
 	err = connector.decode(c, decodeReq, decodeEndpoint)
 	if err != nil {
 
@@ -122,8 +124,7 @@ func isStreamingResponse(resp *http.Response) bool {
 	return contentType == "text/event-stream" || contentType == "application/x-ndjson"
 }
 
-func buildPrefillRequest(req *http.Request, modelRequest map[string]interface{}) *http.Request {
-	reqCopy := req.Clone(req.Context())
+func (connector *LMCacheConnector) buildPrefillRequest(req *http.Request, modelRequest map[string]interface{}) *http.Request {
 	var reqBody map[string]interface{}
 	maps.Copy(reqBody, modelRequest)
 	delete(reqBody, "stream")
@@ -134,12 +135,15 @@ func buildPrefillRequest(req *http.Request, modelRequest map[string]interface{})
 	}
 
 	bodyBytes, _ := json.Marshal(reqBody)
+
+	reqCopy := req.Clone(req.Context())
+	reqCopy.URL.Scheme = "http"
 	reqCopy.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	reqCopy.ContentLength = int64(len(bodyBytes))
 	return reqCopy
 }
 
-func buildDecodeRequest(req *http.Request, modelRequest map[string]interface{}) *http.Request {
+func (connector *LMCacheConnector) buildDecodeRequest(req *http.Request, modelRequest map[string]interface{}) *http.Request {
 	reqCopy := req.Clone(req.Context())
 
 	var reqBody map[string]interface{}
