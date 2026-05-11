@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lx1036/gateway/pkg/llmrouter/datastore"
 	"github.com/lx1036/gateway/pkg/llmrouter/router/pd"
+	"github.com/lx1036/gateway/pkg/llmrouter/scheduler"
+	"github.com/lx1036/gateway/pkg/llmrouter/scheduler/framework"
 	"io"
 	"k8s.io/klog/v2"
 	"net/http"
@@ -18,6 +21,9 @@ import (
 type ModelRequest map[string]interface{}
 
 type Router struct {
+	store           datastore.Store
+
+	scheduler scheduler.Scheduler
 }
 
 func NewRouter() *Router {
@@ -82,7 +88,16 @@ func (r *Router) HandlerFunc() gin.HandlerFunc {
 }
 
 func (r *Router) scheduling(c *gin.Context, modelRequest ModelRequest) {
-	//err = r.scheduler.Schedule(ctx, pods)
+	// 1. get pods by model name
+	// 2. schedule pods to target pod by schedule policy
+
+	ctx := &framework.SchedulerContext{
+		Model:  modelName,
+		Prompt: prompt,
+	}
+
+	err = r.scheduler.Schedule(ctx, pods)
+
 	// TODO: schedule pods -> llm plugins -> target pod
 	podIP := "localhost"
 	port := 18080

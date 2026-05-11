@@ -3,32 +3,26 @@ package inferencepool
 import (
 	"context"
 	"fmt"
-	"github.com/lx1036/gateway/pkg/epp/datastore"
 	"github.com/lx1036/gateway/pkg/epp/utils"
+	"github.com/lx1036/gateway/pkg/llmrouter/datastore"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-const  (
+const (
 	// PoolLabelKey pod label: {networking.lx1036.ai: inferencepool1}
 	PoolLabelKey = "networking.lx1036.ai"
 )
 
-
 type PodReconciler struct {
 	client.Client
-	Datastore *datastore.Datastore
+	Datastore *datastore.Store
 }
-
-
-
-
 
 func (c *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	/**
